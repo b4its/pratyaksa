@@ -48,65 +48,98 @@ const statusDistribution = ref([
   { label: 'Sehat', jumlah: 65, color: 'bg-emerald-400' },
   { label: 'Warning', jumlah: 20, color: 'bg-miningYellow' },
   { label: 'Critical', jumlah: 10, color: 'bg-neoRed' },
-  { label: 'Rusak Dalam Perbaikan', jumlah: 5, color: 'bg-gray-400' },
+  { label: 'Rusak', jumlah: 7, color: 'bg-red-800' },
+  { label: 'Sedang Perbaikan', jumlah: 5, color: 'bg-gray-400' },
 ])
 
-// --- LOGIKA MAP LEAFLET (DUMMY DATA KOORDINAT) ---
+// --- DATA KOORDINAT & TELEMETRI LENGKAP (DIPERBARUI) ---
 const mapLocations = ref([
-  { id: 1, name: 'Pit Alpha - Excavator 320', lat: -0.4900, lng: 117.1400, status: 'Sehat' },
-  { id: 2, name: 'Pit Beta - Dump Truck P410', lat: -0.5102, lng: 117.1536, status: 'Warning' },
-  { id: 3, name: 'Pit Gamma - Dozer D85A', lat: -0.5250, lng: 117.1300, status: 'Critical' },
-  { id: 4, name: 'Stockpile - Wheel Loader', lat: -0.4850, lng: 117.1650, status: 'Rusak' },
+  { id: 1, unit: 'EX-003', type: 'Excavator 320', lat: -0.5005, lng: 117.1510, status: 'Normal', level: 'L', colorHex: '#84cc16', fuel: '78%', operator: 'Budi S.', speed: '0 km/h', temp: '85°C', lastUpdate: '2 mnt lalu' },
+  { id: 2, unit: 'HT-019', type: 'Haul Truck', lat: -0.5030, lng: 117.1470, status: 'Normal', level: 'M', colorHex: '#84cc16', fuel: '45%', operator: 'Joko P.', speed: '25 km/h', temp: '90°C', lastUpdate: '1 mnt lalu' },
+  { id: 3, unit: 'EX-007', type: 'Excavator 336', lat: -0.4990, lng: 117.1560, status: 'High', level: 'H', colorHex: '#f59e0b', fuel: '20%', operator: 'Agus T.', speed: '0 km/h', temp: '105°C', lastUpdate: 'Baru saja' },
+  { id: 4, unit: 'DZ-011', type: 'Dozer D85A', lat: -0.5050, lng: 117.1495, status: 'High', level: 'H', colorHex: '#f59e0b', fuel: '55%', operator: 'Rian M.', speed: '5 km/h', temp: '98°C', lastUpdate: '5 mnt lalu' },
+  { id: 5, unit: 'HT-023', type: 'Haul Truck', lat: -0.5075, lng: 117.1450, status: 'Critical', level: 'I', colorHex: '#ef4444', fuel: '10%', operator: 'Deni R.', speed: '0 km/h', temp: '120°C', lastUpdate: '10 mnt lalu' },
+  { id: 6, unit: 'HT-021', type: 'Haul Truck', lat: -0.5040, lng: 117.1530, status: 'Normal', level: 'L', colorHex: '#84cc16', fuel: '80%', operator: 'Siti N.', speed: '30 km/h', temp: '88°C', lastUpdate: 'Baru saja' },
+  { id: 7, unit: 'HT-025', type: 'Haul Truck', lat: -0.5060, lng: 117.1585, status: 'Normal', level: 'L', colorHex: '#84cc16', fuel: '65%', operator: 'Eko W.', speed: '22 km/h', temp: '82°C', lastUpdate: '3 mnt lalu' },
 ])
 
-// Inisialisasi Peta (Hanya dieksekusi di sisi Klien)
+// --- INISIALISASI PETA LEAFLET ---
 onMounted(async () => {
   if (typeof window !== 'undefined') {
-    // Import Leaflet secara dinamis untuk menghindari error SSR di Nuxt 3
     const L = (await import('leaflet')).default
     
-    // Perbaikan URL Icon bawaan Leaflet untuk Webpack/Vite
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    });
-
     await nextTick()
     
-    // Titik tengah peta difokuskan ke Samarinda
-    const map = L.map('mining-map').setView([-0.5022, 117.1536], 12)
+    const map = L.map('mining-map', {
+      center: [-0.5032, 117.1536],
+      zoom: 15,
+      zoomControl: false // Menyembunyikan zoom bawaan agar UI lebih bersih
+    })
 
-    // Layer Peta Dasar (OpenStreetMap)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    // Layer Peta Dasar (Bisa diganti dengan map satelit jika ada URLnya)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors & CARTO'
     }).addTo(map)
 
-    // Memasukkan Data Dummy ke Peta
+    // Render Data ke Peta menggunakan Custom HTML (L.divIcon)
     mapLocations.value.forEach(loc => {
-      const marker = L.marker([loc.lat, loc.lng]).addTo(map)
       
-      // Kustomisasi Popup Leaflet agar agak selaras dengan desain
-      marker.bindPopup(`
-        <div style="font-family: 'Public Sans', sans-serif; padding: 4px;">
-          <h4 style="font-weight: 900; font-size: 14px; text-transform: uppercase; margin-bottom: 4px;">${loc.name}</h4>
-          <span style="font-weight: bold; background: #000; color: #FFCC00; padding: 2px 6px; font-size: 10px;">STATUS: ${loc.status}</span>
+      // 1. Desain Marker Permanen (Mengikuti UI Referensi)
+      const customIcon = L.divIcon({
+        className: 'custom-fleet-marker',
+        html: `
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div style="background-color: ${loc.colorHex}; width: 26px; height: 26px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 12px; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3); font-family: sans-serif;">
+              ${loc.level}
+            </div>
+            <div style="background-color: #262626; color: white; font-size: 11px; font-weight: 900; padding: 2px 6px; border-radius: 4px; margin-top: -6px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); white-space: nowrap; font-family: 'Space Mono', monospace; letter-spacing: -0.5px;">
+              ${loc.unit}
+            </div>
+          </div>
+        `,
+        iconSize: [50, 50],
+        iconAnchor: [25, 25],
+        popupAnchor: [0, -20]
+      })
+
+      const marker = L.marker([loc.lat, loc.lng], { icon: customIcon }).addTo(map)
+      
+      // 2. Desain Popup Komprehensif saat di-klik
+      const popupHtml = `
+        <div style="font-family: 'Public Sans', sans-serif; min-width: 220px;">
+          <div style="background-color: #000; color: #fff; padding: 10px; border-top-left-radius: 4px; border-top-right-radius: 4px; border-bottom: 4px solid ${loc.colorHex};">
+            <h4 style="font-weight: 900; font-size: 16px; margin: 0;">${loc.unit}</h4>
+            <p style="margin: 0; font-size: 11px; color: #ccc;">${loc.type}</p>
+          </div>
+          
+          <div style="padding: 10px; background-color: #fff; border: 2px solid #000; border-top: none; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px;">
+            <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+              <tr><td style="color: #666; padding-bottom: 4px;">Status</td><td style="font-weight: 900; text-align: right;">${loc.status}</td></tr>
+              <tr><td style="color: #666; padding-bottom: 4px;">Operator</td><td style="font-weight: 900; text-align: right;">${loc.operator}</td></tr>
+              <tr><td style="color: #666; padding-bottom: 4px;">Speed</td><td style="font-weight: 900; text-align: right;">${loc.speed}</td></tr>
+              <tr><td style="color: #666; padding-bottom: 4px;">Suhu Mesin</td><td style="font-weight: 900; text-align: right; color: ${loc.temp > '100' ? 'red' : 'inherit'}">${loc.temp}</td></tr>
+              <tr><td style="color: #666; padding-bottom: 8px;">Fuel Level</td><td style="font-weight: 900; text-align: right;">${loc.fuel}</td></tr>
+            </table>
+            
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ccc; font-size: 10px; color: #888; text-align: center;">
+              Kordinat: ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}<br/>
+              <b>Terakhir update: ${loc.lastUpdate}</b>
+            </div>
+          </div>
         </div>
-      `)
+      `
+      marker.bindPopup(popupHtml, {
+        closeButton: false, // Menghilangkan tombol close X bawaan leaflet agar lebih clean
+        className: 'custom-leaflet-popup'
+      })
     })
   }
 })
 
 // --- LOGIKA MODAL LAPORAN DASHBOARD ---
 const isReportModalOpen = ref(false)
-
-const openReportModal = () => {
-  isReportModalOpen.value = true
-}
-const closeReportModal = () => {
-  isReportModalOpen.value = false
-}
+const openReportModal = () => { isReportModalOpen.value = true }
+const closeReportModal = () => { isReportModalOpen.value = false }
 </script>
 
 <template>
@@ -126,9 +159,8 @@ const closeReportModal = () => {
             :key="item.name"
             :to="item.path"
             @click="setActiveMenu(item)"
-            :href="`{item.path}`"
             :class="[
-            'w-full flex items-center gap-3 p-3 border-2 font-bold group transition-all',
+            'w-full flex items-center gap-3 p-3 border-2 font-bold group transition-all cursor-pointer',
             activeMenu === item.name 
                 ? 'border-black bg-miningYellow shadow-neoHover' 
                 : 'border-transparent hover:border-black hover:bg-white hover:shadow-neoHover'
@@ -144,13 +176,13 @@ const closeReportModal = () => {
         </nav>
       </div>
 
-      <div class="border-4 border-black p-4 bg-white shadow-neo mt-8">
+      <!-- <div class="border-4 border-black p-4 bg-white shadow-neo mt-8">
         <p class="text-[10px] font-black uppercase text-gray-500">Logged in as</p>
         <div class="flex items-center gap-3 mt-1">
           <div class="w-10 h-10 border-2 border-black bg-neoBlue shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0"></div>
           <p class="font-black text-sm truncate">Admin Suki</p>
         </div>
-      </div>
+      </div> -->
     </aside>
 
     <main class="flex-1 p-8 overflow-y-auto z-10 relative">
@@ -237,10 +269,15 @@ const closeReportModal = () => {
         </div>
 
         <div class="bg-white border-4 border-black shadow-neo p-6 mt-8 flex flex-col relative z-0">
-          <div class="flex justify-between items-center mb-6 border-b-4 border-black pb-4">
-            <h2 class="text-2xl font-black uppercase">Peta Persebaran Unit</h2>
+          <div class="flex justify-between items-center mb-4 border-b-4 border-black pb-4">
+            <h2 class="text-2xl font-black uppercase">Peta &bull; Deretan Sebaran Unit</h2>
+            <div class="flex gap-4 text-xs font-bold bg-gray-100 px-3 py-1 border-2 border-black">
+              <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500 border border-black inline-block"></span> Critical</div>
+              <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-yellow-500 border border-black inline-block"></span> High</div>
+              <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-500 border border-black inline-block"></span> Normal</div>
+            </div>
           </div>
-          <div id="mining-map" class="w-full h-96 border-4 border-black shadow-neoHover relative z-0"></div>
+          <div id="mining-map" class="w-full h-[500px] border-4 border-black shadow-neoHover relative z-0 bg-[#e8f4f8]"></div>
         </div>
 
       </div>
@@ -309,7 +346,6 @@ const closeReportModal = () => {
 </template>
 
 <style>
-/* Penting untuk mengimpor CSS Leaflet agar tampilan peta tidak berantakan */
 @import url('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
 @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@900&family=Space+Mono:wght@400;700&display=swap');
 
@@ -322,9 +358,25 @@ h1, h2, h3, h4, button, .font-black {
   font-weight: 900;
 }
 
-/* Penyesuaian z-index khusus Leaflet untuk modal agar tidak menabrak z-index map bawaan leaflet */
+/* Penyesuaian Leaflet Container */
 .leaflet-container {
   z-index: 1 !important;
+  font-family: inherit;
+}
+
+/* Modifikasi bawaan popup Leaflet agar background putihnya hilang/transparan
+   karena kita menggunakan styling div kustom kita sendiri */
+.custom-leaflet-popup .leaflet-popup-content-wrapper {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+.custom-leaflet-popup .leaflet-popup-content {
+  margin: 0;
+  width: auto !important; /* Biarkan konten menentukan lebar */
+}
+.custom-leaflet-popup .leaflet-popup-tip {
+  background: #000; /* Warna panah mengarah ke marker */
 }
 
 /* Animasi Muncul Konten Tab & Modal */

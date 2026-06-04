@@ -36,12 +36,19 @@ Prat<span class="text-neoYellow">yaksa</span>
           <svg v-else class="w-6 h-6 text-miningYellow hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
         </button>
 
-        <button class="font-black border-4 border-black dark:border-zinc-700 px-8 py-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(100,100,100,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(100,100,100,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-300 uppercase">
+        <NuxtLink 
+          to="account/login" 
+          class="inline-block font-black border-4 border-black dark:border-zinc-700 px-8 py-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(100,100,100,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(100,100,100,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-300 uppercase text-center"
+        >
           Masuk
-        </button>
-        <button class="bg-neoBlue text-white font-black border-4 border-black dark:border-zinc-700 px-8 py-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(100,100,100,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(100,100,100,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-300 uppercase">
+        </NuxtLink>
+
+        <NuxtLink 
+          to="account/register" 
+          class="inline-block bg-neoBlue text-white font-black border-4 border-black dark:border-zinc-700 px-8 py-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(100,100,100,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(100,100,100,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-300 uppercase text-center"
+        >
           Daftar Gratis
-        </button>
+        </NuxtLink>
       </div>
     </nav>
 
@@ -51,12 +58,17 @@ Prat<span class="text-neoYellow">yaksa</span>
       <a href="#solusi" @click="toggleMenu" class="hover:text-neoBlue hover:underline decoration-4 underline-offset-4 transition-colors block border-b-2 border-black dark:border-zinc-700 pb-2">Solusi Pratyaksa</a>
       <a href="#keunggulan" @click="toggleMenu" class="hover:text-miningYellow hover:underline decoration-4 underline-offset-4 transition-colors block border-b-2 border-black dark:border-zinc-700 pb-2">Keunggulan</a>
       <div class="mt-8 flex flex-col gap-4">
-        <button class="w-full font-black border-4 border-black dark:border-zinc-700 px-8 py-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(100,100,100,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-300 uppercase bg-[#f0f0f0] dark:bg-zinc-800 text-center">
+        <NuxtLink
+          to="account/login"
+          class="w-full font-black border-4 border-black dark:border-zinc-700 px-8 py-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(100,100,100,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-300 uppercase bg-[#f0f0f0] dark:bg-zinc-800 text-center"
+          >
           Masuk
-        </button>
-        <button class="w-full bg-neoBlue text-white font-black border-4 border-black dark:border-zinc-700 px-8 py-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(100,100,100,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-300 uppercase text-center">
+        </NuxtLink>
+        <NuxtLink 
+          to="account/register"
+          class="w-full bg-neoBlue text-white font-black border-4 border-black dark:border-zinc-700 px-8 py-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(100,100,100,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-300 uppercase text-center">
           Daftar Gratis
-        </button>
+        </NuxtLink>
       </div>
     </div>
 
@@ -203,9 +215,11 @@ Prat<span class="text-neoYellow">yaksa</span>
         <h2 class="text-5xl md:text-8xl font-black uppercase mb-10 tracking-tighter leading-none drop-shadow-[4px_4px_0px_rgba(255,204,0,1)] dark:drop-shadow-[4px_4px_0px_rgba(255,204,0,0.5)] transition-all duration-500">
           Tingkatkan Efektifitas Tambang Anda Sekarang.
         </h2>
-        <button class="bg-miningYellow text-black font-black text-2xl md:text-4xl border-4 border-white dark:border-zinc-700 px-12 py-6 shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] dark:shadow-[8px_8px_0px_0px_rgba(100,100,100,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(100,100,100,1)] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none transition-all duration-300 uppercase mt-8">
+        <NuxtLink 
+          to="account/register"
+          class="bg-miningYellow text-black font-black text-2xl md:text-4xl border-4 border-white dark:border-zinc-700 px-12 py-6 shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] dark:shadow-[8px_8px_0px_0px_rgba(100,100,100,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(100,100,100,1)] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none transition-all duration-300 uppercase mt-8">
           Ayo Bergabung Bersama Kami
-        </button>
+        </NuxtLink>
       </div>
     </footer>
   </div>

@@ -50,7 +50,7 @@ const units = ref<Unit[]>([
 
 // --- LOGIKA PAGINATION ---
 const currentPage = ref(1)
-const itemsPerPage = 4
+const itemsPerPage = 5
 
 const totalPages = computed(() => Math.ceil(units.value.length / itemsPerPage))
 
@@ -63,6 +63,30 @@ const paginatedUnits = computed(() => {
 const prevPage = () => { if (currentPage.value > 1) currentPage.value-- }
 const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.value++ }
 const goToPage = (page: number) => { currentPage.value = page }
+
+// LOGIKA BARU: Batasan Halaman yang Tampil (Sliding Window)
+const maxVisiblePages = 3 // Jumlah maksimal tombol angka yang tampil
+const visiblePages = computed(() => {
+  const pages = []
+  if (totalPages.value <= maxVisiblePages) {
+    for (let i = 1; i <= totalPages.value; i++) {
+      pages.push(i)
+    }
+  } else {
+    let start = Math.max(1, currentPage.value - Math.floor(maxVisiblePages / 2))
+    let end = start + maxVisiblePages - 1
+
+    if (end > totalPages.value) {
+      end = totalPages.value
+      start = Math.max(1, end - maxVisiblePages + 1)
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i)
+    }
+  }
+  return pages
+})
 
 // --- LOGIKA MODAL VIEW ---
 const isModalOpen = ref(false)
@@ -188,33 +212,56 @@ const getStatusColor = (status: string) => {
           </tbody>
         </table>
 
-        <div class="p-4 border-t-4 border-black bg-white flex justify-end gap-2">
-           <button 
-             @click="prevPage" 
-             :disabled="currentPage === 1"
-             class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-black transition-colors"
-           >
-             &lt;
-           </button>
-           
-           <button 
-             v-for="page in totalPages" 
-             :key="page" 
-             @click="goToPage(page)"
-             :class="currentPage === page ? 'bg-black text-white' : 'bg-white text-black hover:bg-black hover:text-white'"
-             class="w-10 h-10 border-2 border-black flex items-center justify-center font-black transition-colors"
-           >
-             {{ page }}
-           </button>
+<div class="p-4 border-t-4 border-black bg-white flex justify-end gap-2 flex-wrap">
+  <!-- Tombol Halaman Pertama (First) -->
+  <button 
+    @click="goToPage(1)" 
+    :disabled="currentPage === 1"
+    class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-black transition-colors"
+    title="Halaman Pertama"
+  >
+    &laquo;
+  </button>
 
-           <button 
-             @click="nextPage" 
-             :disabled="currentPage === totalPages"
-             class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-black transition-colors"
-           >
-             &gt;
-           </button>
-        </div>
+  <!-- Tombol Prev (<) -->
+  <button 
+    @click="prevPage" 
+    :disabled="currentPage === 1"
+    class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-black transition-colors"
+  >
+    &lt;
+  </button>
+  
+  <!-- Tombol Angka Dinamis (Maksimal 5) -->
+  <button 
+    v-for="page in visiblePages" 
+    :key="page" 
+    @click="goToPage(page)"
+    :class="currentPage === page ? 'bg-black text-white' : 'bg-white text-black hover:bg-black hover:text-white'"
+    class="w-10 h-10 border-2 border-black flex items-center justify-center font-black transition-colors"
+  >
+    {{ page }}
+  </button>
+
+  <!-- Tombol Next (>) -->
+  <button 
+    @click="nextPage" 
+    :disabled="currentPage === totalPages"
+    class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-black transition-colors"
+  >
+    &gt;
+  </button>
+
+  <!-- Tombol Halaman Terakhir (Last) -->
+  <button 
+    @click="goToPage(totalPages)" 
+    :disabled="currentPage === totalPages"
+    class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-black transition-colors"
+    title="Halaman Terakhir"
+  >
+    &raquo;
+  </button>
+</div>
       </section>
 
       <h2 class="text-4xl font-black mb-6 uppercase">Visual Armada</h2>
