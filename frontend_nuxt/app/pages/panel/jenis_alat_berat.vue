@@ -11,14 +11,35 @@ useHead({
 interface MenuItem {
   name: string
   path: string
+  icon: string
 }
 
 const menuItems = ref<MenuItem[]>([
-  { name: 'Dashboard', path: '/panel/dashboard' },
-  { name: 'Jenis Alat Berat', path: '/panel/jenis_alat_berat' },
-  { name: 'Unit Tambang', path: '/panel/unit_tambang' },
-  { name: 'Analisa Kerusakan', path: '/panel/analisa' },
-  { name: 'Kembali', path: '../' },
+  { 
+    name: 'Dashboard', 
+    path: '/panel/dashboard',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><rect width="7" height="9" x="3" y="3"/><rect width="7" height="5" x="14" y="3"/><rect width="7" height="9" x="14" y="12"/><rect width="7" height="5" x="3" y="16"/></svg>`
+  },
+  { 
+    name: 'Jenis Alat Berat', 
+    path: '/panel/jenis_alat_berat',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-9l-2.5-3.5H14v12h3"/><path d="M14 6h4.5"/><circle cx="18.5" cy="17.5" r="2.5"/><circle cx="5.5" cy="17.5" r="2.5"/></svg>`
+  },
+  { 
+    name: 'Unit Tambang', 
+    path: '/panel/unit_tambang',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>`
+  },
+  { 
+    name: 'Analisa Kerusakan', 
+    path: '/panel/analisa',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`
+  },
+  { 
+    name: 'Kembali', 
+    path: '../',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>`
+  },
 ])
 
 const activeMenu = ref('Jenis Alat Berat')
@@ -186,12 +207,15 @@ const getStatusColor = (status: string) => {
                 : 'border-transparent hover:border-black hover:bg-white hover:shadow-neoHover'
             ]"
         >
-            <div v-if="activeMenu === item.name" class="p-1 border-2 border-black bg-white">
-            <div class="w-4 h-4 bg-black"></div>
+            <div v-if="activeMenu === item.name" class="p-1 border-2 border-black bg-white shrink-0 flex items-center justify-center">
+              <div class="w-2.5 h-2.5 bg-black"></div>
             </div>
-            <div v-else class="w-4 h-4 border-2 border-black ml-1.5"></div>
+            <div v-else class="w-2.5 h-2.5 border-2 border-black ml-1.5 shrink-0 bg-transparent"></div>
             
-            {{ item.name }}
+            <div class="flex items-center gap-3 w-full">
+               <div class="flex items-center justify-center shrink-0" v-html="item.icon"></div>
+               <span class="truncate">{{ item.name }}</span>
+            </div>
         </NuxtLink>
         </nav>
       </div>
