@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 
 // --- LOGIKA SIDEBAR NAVIGASI ---
 interface MenuItem {
@@ -19,7 +19,6 @@ const activeMenu = ref('Dashboard')
 
 const setActiveMenu = (menu: MenuItem) => {
   activeMenu.value = menu.name
-  // navigateTo(menu.path) // Buka komentar ini jika integrasi routing Nuxt sudah siap
 }
 
 // --- DATA DUMMY DASHBOARD (CHART & KPI) ---
@@ -40,18 +39,64 @@ const histogramData = ref([
   { month: 'Jul', value: 140, color: 'bg-neoRed' },
 ])
 
-// Hitung nilai tertinggi dari data agar grafiknya proporsional
 const maxHistogramValue = computed(() => {
   const max = Math.max(...histogramData.value.map(d => d.value))
   return max === 0 ? 1 : max
 })
 
 const statusDistribution = ref([
-  { label: 'Sehat', percentage: 65, color: 'bg-emerald-400' },
-  { label: 'Warning', percentage: 20, color: 'bg-miningYellow' },
-  { label: 'Critical', percentage: 10, color: 'bg-neoRed' },
-  { label: 'Rusak Dalam Perbaikan', percentage: 5, color: 'bg-gray-400' },
+  { label: 'Sehat', jumlah: 65, color: 'bg-emerald-400' },
+  { label: 'Warning', jumlah: 20, color: 'bg-miningYellow' },
+  { label: 'Critical', jumlah: 10, color: 'bg-neoRed' },
+  { label: 'Rusak Dalam Perbaikan', jumlah: 5, color: 'bg-gray-400' },
 ])
+
+// --- LOGIKA MAP LEAFLET (DUMMY DATA KOORDINAT) ---
+const mapLocations = ref([
+  { id: 1, name: 'Pit Alpha - Excavator 320', lat: -0.4900, lng: 117.1400, status: 'Sehat' },
+  { id: 2, name: 'Pit Beta - Dump Truck P410', lat: -0.5102, lng: 117.1536, status: 'Warning' },
+  { id: 3, name: 'Pit Gamma - Dozer D85A', lat: -0.5250, lng: 117.1300, status: 'Critical' },
+  { id: 4, name: 'Stockpile - Wheel Loader', lat: -0.4850, lng: 117.1650, status: 'Rusak' },
+])
+
+// Inisialisasi Peta (Hanya dieksekusi di sisi Klien)
+onMounted(async () => {
+  if (typeof window !== 'undefined') {
+    // Import Leaflet secara dinamis untuk menghindari error SSR di Nuxt 3
+    const L = (await import('leaflet')).default
+    
+    // Perbaikan URL Icon bawaan Leaflet untuk Webpack/Vite
+    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+
+    await nextTick()
+    
+    // Titik tengah peta difokuskan ke Samarinda
+    const map = L.map('mining-map').setView([-0.5022, 117.1536], 12)
+
+    // Layer Peta Dasar (OpenStreetMap)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map)
+
+    // Memasukkan Data Dummy ke Peta
+    mapLocations.value.forEach(loc => {
+      const marker = L.marker([loc.lat, loc.lng]).addTo(map)
+      
+      // Kustomisasi Popup Leaflet agar agak selaras dengan desain
+      marker.bindPopup(`
+        <div style="font-family: 'Public Sans', sans-serif; padding: 4px;">
+          <h4 style="font-weight: 900; font-size: 14px; text-transform: uppercase; margin-bottom: 4px;">${loc.name}</h4>
+          <span style="font-weight: bold; background: #000; color: #FFCC00; padding: 2px 6px; font-size: 10px;">STATUS: ${loc.status}</span>
+        </div>
+      `)
+    })
+  }
+})
 
 // --- LOGIKA MODAL LAPORAN DASHBOARD ---
 const isReportModalOpen = ref(false)
@@ -67,8 +112,7 @@ const closeReportModal = () => {
 <template>
   <div class="flex min-h-screen bg-[#F1F1F1] font-mono text-black relative">
     
-    <!-- SIDEBAR -->
-    <aside class="w-72 border-r-4 border-black bg-white p-6 flex flex-col justify-between z-10 shrink-0">
+    <aside class="w-72 border-r-4 border-black bg-white p-6 flex flex-col justify-between z-[60] shrink-0">
       <div>
         <div class="mb-10 flex justify-center">
           <div class="bg-miningYellow border-4 border-black p-4 shadow-neo w-24 h-24 flex items-center justify-center rounded-xl translate-x-[-4px] translate-y-[-4px]">
@@ -77,7 +121,7 @@ const closeReportModal = () => {
         </div>
 
         <nav class="space-y-4">
-          <NuxtLink 
+        <NuxtLink 
             v-for="item in menuItems" 
             :key="item.name"
             :to="item.path"
@@ -109,8 +153,7 @@ const closeReportModal = () => {
       </div>
     </aside>
 
-    <!-- MAIN CONTENT -->
-    <main class="flex-1 p-8 overflow-y-auto">
+    <main class="flex-1 p-8 overflow-y-auto z-10 relative">
       <header class="flex justify-between items-start mb-10">
         <div>
           <h1 class="text-6xl font-black uppercase tracking-tighter leading-none">{{ activeMenu }}</h1>
@@ -124,10 +167,8 @@ const closeReportModal = () => {
         </div>
       </header>
 
-      <!-- HANYA MENAMPILKAN DASHBOARD -->
-      <div v-if="activeMenu === 'Dashboard'" class="space-y-8 animate-[popup_0.3s_ease-out]">
+      <div v-show="activeMenu === 'Dashboard'" class="space-y-8 animate-[popup_0.3s_ease-out]">
         
-        <!-- KPI CARDS -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div class="bg-white border-4 border-black p-6 shadow-neoHover hover:-translate-y-1 hover:shadow-neo transition-all">
             <p class="text-xs font-black uppercase text-gray-500 mb-2">Total Unit</p>
@@ -149,7 +190,6 @@ const closeReportModal = () => {
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          <!-- HISTOGRAM AREA -->
           <div class="lg:col-span-2 bg-white border-4 border-black shadow-neo p-6 flex flex-col">
             <div class="flex justify-between items-center mb-8 border-b-4 border-black pb-4">
               <h2 class="text-2xl font-black uppercase">Statistik Utilisasi</h2>
@@ -172,7 +212,6 @@ const closeReportModal = () => {
             </div>
           </div>
 
-          <!-- PROGRESS BAR AREA -->
           <div class="bg-white border-4 border-black shadow-neo p-6 flex flex-col">
             <h2 class="text-2xl font-black uppercase mb-6 border-b-4 border-black pb-4">Distribusi Status</h2>
             
@@ -180,12 +219,12 @@ const closeReportModal = () => {
               <div v-for="(item, index) in statusDistribution" :key="item.label">
                 <div class="flex justify-between font-black text-sm mb-2 uppercase">
                   <span>{{ item.label }}</span>
-                  <span>{{ item.percentage }}/{{ dashboardKPI.totalUnits }}</span>
+                  <span>{{ item.jumlah }}/{{ dashboardKPI.totalUnits }}</span>
                 </div>
                 <div class="w-full h-6 border-4 border-black bg-gray-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden">
                   <div 
                     :class="[item.color, 'h-full border-r-4 border-black animate-progress-grow']" 
-                    :style="{ width: `${item.percentage}%`, animationDelay: `${index * 0.1}s` }"
+                    :style="{ width: `${item.jumlah}%`, animationDelay: `${index * 0.1}s` }"
                   ></div>
                 </div>
               </div>
@@ -196,11 +235,18 @@ const closeReportModal = () => {
             </button>
           </div>
         </div>
+
+        <div class="bg-white border-4 border-black shadow-neo p-6 mt-8 flex flex-col relative z-0">
+          <div class="flex justify-between items-center mb-6 border-b-4 border-black pb-4">
+            <h2 class="text-2xl font-black uppercase">Peta Persebaran Unit</h2>
+          </div>
+          <div id="mining-map" class="w-full h-96 border-4 border-black shadow-neoHover relative z-0"></div>
+        </div>
+
       </div>
     </main>
 
-    <!-- MODAL POPUP (DETAIL LAPORAN DASHBOARD) -->
-    <div v-if="isReportModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div v-if="isReportModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeReportModal"></div>
       <div class="bg-white border-4 border-black shadow-neo w-full max-w-3xl relative z-10 flex flex-col max-h-[90vh] animate-[popup_0.2s_ease-out]">
         
@@ -239,7 +285,7 @@ const closeReportModal = () => {
                     {{ item.label }}
                   </span>
                 </td>
-                <td class="p-3 font-black text-xl">{{ item.percentage }}%</td>
+                <td class="p-3 font-black text-xl">{{ item.jumlah }}/{{ dashboardKPI.totalUnits }}</td>
                 <td class="p-3 font-bold text-sm text-gray-700">
                   {{ item.label === 'Sehat' ? 'Pertahankan jadwal maintenance rutin.' : 
                      item.label === 'Warning' ? 'Lakukan pengecekan dalam 48 jam ke depan.' : 
@@ -263,6 +309,8 @@ const closeReportModal = () => {
 </template>
 
 <style>
+/* Penting untuk mengimpor CSS Leaflet agar tampilan peta tidak berantakan */
+@import url('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
 @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@900&family=Space+Mono:wght@400;700&display=swap');
 
 body {
@@ -272,6 +320,11 @@ body {
 h1, h2, h3, h4, button, .font-black {
   font-family: 'Public Sans', sans-serif;
   font-weight: 900;
+}
+
+/* Penyesuaian z-index khusus Leaflet untuk modal agar tidak menabrak z-index map bawaan leaflet */
+.leaflet-container {
+  z-index: 1 !important;
 }
 
 /* Animasi Muncul Konten Tab & Modal */
