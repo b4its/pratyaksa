@@ -1,16 +1,14 @@
 <template>
-  <div class="min-h-screen text-black dark:text-white bg-[#fdfdfd] dark:bg-zinc-950 overflow-x-hidden selection:bg-miningYellow selection:text-black font-sans transition-colors duration-500">
+  <div class="min-h-screen text-black dark:text-white bg-[#fdfdfd] dark:bg-zinc-950 selection:bg-miningYellow selection:text-black font-sans transition-colors duration-500">
     
-<!-- Navbar -->
     <nav class="sticky top-0 z-50 bg-white dark:bg-zinc-950 border-b-4 border-black dark:border-zinc-700 px-6 py-4 flex justify-between items-center w-full transition-colors duration-500">
       <div class="font-black text-2xl tracking-tighter uppercase flex items-center gap-2 hover:scale-105 transition-transform cursor-pointer">
         <div class="w-6 h-6 bg-black dark:bg-white transition-colors duration-500"></div>
         <p>
-Prat<span class="text-neoYellow">yaksa</span>
+          Prat<span class="text-neoYellow">yaksa</span>
         </p>
       </div>
       
-      <!-- Mobile Controls - MUNCUL HINGGA LAYAR xl (1280px) -->
       <div class="xl:hidden flex gap-4">
         <button @click="toggleTheme" aria-label="Toggle Dark Mode" class="border-4 border-black dark:border-white p-2 bg-neoBlue dark:bg-zinc-800 text-white active:translate-y-1 active:shadow-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] transition-all">
            <svg v-if="!isDark" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
@@ -22,14 +20,12 @@ Prat<span class="text-neoYellow">yaksa</span>
         </button>
       </div>
 
-      <!-- Desktop Links -  (>= 1280px) -->
       <div class="hidden xl:flex gap-8 font-bold items-center border-4 border-black dark:border-zinc-700 px-6 py-2 bg-[#f0f0f0] dark:bg-zinc-800 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(100,100,100,1)] transition-all duration-500">
         <a href="#tentang" class="hover:text-neoRed hover:underline decoration-4 underline-offset-4 transition-colors">Tentang Kami</a>
         <a href="#solusi" class="hover:text-neoBlue hover:underline decoration-4 underline-offset-4 transition-colors">Solusi Pratyaksa</a>
         <a href="#keunggulan" class="hover:text-miningYellow hover:underline decoration-4 underline-offset-4 transition-colors">Keunggulan</a>
       </div>
       
-      <!-- Desktop Actions -  (>= 1280px) -->
       <div class="hidden xl:flex items-center gap-4">
         <button @click="toggleTheme" aria-label="Toggle Dark Mode" class="border-4 border-black dark:border-zinc-700 p-2 bg-white dark:bg-zinc-800 text-black dark:text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(100,100,100,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(100,100,100,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-300">
           <svg v-if="!isDark" class="w-6 h-6 hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
@@ -52,7 +48,6 @@ Prat<span class="text-neoYellow">yaksa</span>
       </div>
     </nav>
 
-    <!-- Mobile Slide-out Menu  -->
     <div v-show="isMenuOpen" class="xl:hidden fixed inset-0 z-40 bg-white dark:bg-zinc-950 pt-24 px-6 flex flex-col gap-6 font-bold text-xl transition-colors duration-500">
       <a href="#tentang" @click="toggleMenu" class="hover:text-neoRed hover:underline decoration-4 underline-offset-4 transition-colors block border-b-2 border-black dark:border-zinc-700 pb-2">Tentang Kami</a>
       <a href="#solusi" @click="toggleMenu" class="hover:text-neoBlue hover:underline decoration-4 underline-offset-4 transition-colors block border-b-2 border-black dark:border-zinc-700 pb-2">Solusi Pratyaksa</a>
@@ -82,7 +77,7 @@ Prat<span class="text-neoYellow">yaksa</span>
         </div>
         
         <h1 class="text-5xl md:text-7xl font-black uppercase leading-[1.1] tracking-tighter mb-6 mt-4 text-black dark:text-white transition-colors duration-500">
-          Kendalikan Tambang Anda <br> <span class="bg-black dark:bg-white text-white dark:text-black px-2 leading-relaxed transition-colors duration-500">Dengan Data.</span>
+          Kendalikan Tambang Anda <br> <span class="bg-black dark:bg-white text-white dark:text-black px-2 leading-relaxed transition-colors duration-500">Dengan Data</span>
         </h1>
         <p class="text-lg md:text-xl font-bold mb-10 max-w-2xl mx-auto text-gray-800 dark:text-gray-300 transition-colors duration-500">
           Pratyaksa mengintegrasikan Internet Of Things dan Machine Learning untuk memberikan visibilitas penuh, memprediksi kerusakan alat berat, dan mengotomatisasi keputusan operasional.
