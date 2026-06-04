@@ -1,7 +1,8 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  // Kasih tahu Nuxt kalau semua file source ada di dalam folder 'app'
+  // 1. TEGASKAN KEMBALI folder source kamu ada di 'app' agar Nuxt tidak bingung
   srcDir: 'app',
+
   dir: {
     pages: 'pages',
   },
@@ -11,7 +12,6 @@ export default defineNuxtConfig({
     'shadcn-nuxt'
   ],
 
-  
   shadcn: {
     /** Prefix untuk semua komponen shadcn */
     prefix: '',
@@ -26,7 +26,11 @@ export default defineNuxtConfig({
     }
   },
 
-  
+  // 2. ATUR HOST KE '0.0.0.0' DISINI SETELAH SRCDIR DITEGASKAN
+  devServer: {
+    host: '0.0.0.0',
+    port: 3000
+  },
 
   // ---  KONFIGURASI TAILWIND ---
   tailwindcss: {
@@ -52,5 +56,4 @@ export default defineNuxtConfig({
       }
     }
   }
-  
 })
