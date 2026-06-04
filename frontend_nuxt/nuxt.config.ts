@@ -13,11 +13,8 @@ export default defineNuxtConfig({
 
   
   shadcn: {
-    /** Prefix untuk semua komponen shadcn kamu */
+    /** Prefix untuk semua komponen shadcn */
     prefix: '',
-    /** * Karena srcDir sudah diarahkan ke 'app/', 
-     * path di bawah ini otomatis relatif dari dalam folder 'app/' 
-     */
     componentDir: './components/ui' 
   },
 
@@ -31,13 +28,12 @@ export default defineNuxtConfig({
 
   
 
-  // --- MASUKKAN KONFIGURASI TAILWIND DI SINI ---
+  // ---  KONFIGURASI TAILWIND ---
   tailwindcss: {
     config: {
       darkMode: 'class',
       content: [
         "./app/**/*.{js,vue,ts}",
-        // Memastikan app.vue dan index.vue di dalam folder app terbaca
         "./app/**/*.vue" 
       ],
       theme: {
