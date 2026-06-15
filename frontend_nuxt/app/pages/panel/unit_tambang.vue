@@ -1,321 +1,345 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
-// --- LOGIKA SIDEBAR NAVIGASI ---
-interface MenuItem {
-  name: string
-  path: string
-  icon: string
-}
+// Muat web component <model-viewer> (Google) untuk render GLB
+useHead({
+  script: [
+    { type: 'module', src: 'https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js' },
+  ],
+})
 
-const menuItems = ref<MenuItem[]>([
-  { 
-    name: 'Dashboard', 
-    path: '/panel/dashboard',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><rect width="7" height="9" x="3" y="3"/><rect width="7" height="5" x="14" y="3"/><rect width="7" height="9" x="14" y="12"/><rect width="7" height="5" x="3" y="16"/></svg>`
-  },
-  { 
-    name: 'Jenis Alat Berat', 
-    path: '/panel/jenis_alat_berat',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-9l-2.5-3.5H14v12h3"/><path d="M14 6h4.5"/><circle cx="18.5" cy="17.5" r="2.5"/><circle cx="5.5" cy="17.5" r="2.5"/></svg>`
-  },
-  { 
-    name: 'Unit Tambang', 
-    path: '/panel/unit_tambang',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>`
-  },
-  { 
-    name: 'Analisa Kerusakan', 
-    path: '/panel/analisa',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`
-  },
-  { 
-    name: 'Kembali', 
-    path: '../',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>`
-  },
-])
+// ---- Sidebar ----
+const menuItems = [
+  { name: 'Dashboard',       path: '/panel/dashboard',         icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><rect width="7" height="9" x="3" y="3"/><rect width="7" height="5" x="14" y="3"/><rect width="7" height="9" x="14" y="12"/><rect width="7" height="5" x="3" y="16"/></svg>` },
+  { name: 'Jenis Alat Berat', path: '/panel/jenis_alat_berat', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-9l-2.5-3.5H14v12h3"/><path d="M14 6h4.5"/><circle cx="18.5" cy="17.5" r="2.5"/><circle cx="5.5" cy="17.5" r="2.5"/></svg>` },
+  { name: 'Unit Tambang',    path: '/panel/unit_tambang',      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>` },
+  { name: 'Analisa Kerusakan', path: '/panel/analisa',         icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>` },
+  { name: 'Kembali',         path: '../',                       icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>` },
+]
+const activeMenu = ref('Unit Tambang')
 
-const activeMenu = ref('Unit Tambang') 
-
-const setActiveMenu = (menu: MenuItem) => {
-  activeMenu.value = menu.name
-}
-
-// Tipe Data Unit
-interface Unit {
-  id: number
+// ---- Types ----
+interface UnitTambang {
+  id: string
   code: string
-  type: string
+  jenis_alat_berat_id: string
+  jenis_alat_berat_nama: string | null
   status: string
   health: number
   maintenance: string
   savings: number
-  img: string
+  img_url: string | null
+  model3d_url: string | null
+  created_at: string
+  updated_at: string
 }
 
-// Dummy Data JSON
-const units = ref<Unit[]>([
-  { id: 1, code: 'EXC-320-01', type: 'Caterpillar Excavator 320', status: 'SEHAT', health: 96, maintenance: '120 Jam Lagi', savings: 2456, img: 'https://placehold.co/400x250?text=Excavator' },
-  { id: 2, code: 'DT-SCN-12', type: 'Scania Dump Truck P410', status: 'WARNING', health: 78, maintenance: '35 Jam Lagi', savings: 820, img: 'https://placehold.co/400x250?text=Dump+Truck' },
-  { id: 3, code: 'DZ-KMTS-08', type: 'Komatsu Dozer D85A', status: 'CRITICAL', health: 42, maintenance: '8 Jam Lagi (Segera)', savings: -4150, img: 'https://placehold.co/400x250?text=Dozer' },
-  { id: 4, code: 'WL-SDLG-03', type: 'SDLG Wheel Loader LG956', status: 'RUSAK', health: 15, maintenance: 'Sedang Perbaikan', savings: -18000, img: 'https://placehold.co/400x250?text=Loader' },
-  { id: 5, code: 'EXC-320-02', type: 'Caterpillar Excavator 320', status: 'SEHAT', health: 92, maintenance: '110 Jam Lagi', savings: 1200, img: 'https://placehold.co/400x250?text=Excavator+2' },
-  { id: 6, code: 'DT-SCN-15', type: 'Scania Dump Truck P410', status: 'SEHAT', health: 88, maintenance: '80 Jam Lagi', savings: 450, img: 'https://placehold.co/400x250?text=Dump+Truck+2' },
-])
+interface JenisOption { id: string; nama: string }
 
-// --- LOGIKA PAGINATION ---
+// ---- State ----
+const units = ref<UnitTambang[]>([])
+const total = ref(0)
 const currentPage = ref(1)
-const itemsPerPage = 5
-const totalPages = computed(() => Math.ceil(units.value.length / itemsPerPage))
+const perPage = 10
+const searchQuery = ref('')
+const filterStatus = ref('')
+const isLoading = ref(false)
+const errorMsg = ref('')
 
-const paginatedUnits = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage
-  const end = start + itemsPerPage
-  return units.value.slice(start, end)
-})
-
-const prevPage = () => { if (currentPage.value > 1) currentPage.value-- }
-const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.value++ }
-const goToPage = (page: number) => { currentPage.value = page }
-
-const maxVisiblePages = 3 
-const visiblePages = computed(() => {
-  const pages = []
-  if (totalPages.value <= maxVisiblePages) {
-    for (let i = 1; i <= totalPages.value; i++) {
-      pages.push(i)
-    }
-  } else {
-    let start = Math.max(1, currentPage.value - Math.floor(maxVisiblePages / 2))
-    let end = start + maxVisiblePages - 1
-    if (end > totalPages.value) {
-      end = totalPages.value
-      start = Math.max(1, end - maxVisiblePages + 1)
-    }
-    for (let i = start; i <= end; i++) {
-      pages.push(i)
-    }
-  }
-  return pages
-})
-
-// --- LOGIKA MODAL VIEW ---
-const isModalOpen = ref(false)
-const selectedUnit = ref<Unit | null>(null)
-
-const openModal = (unit: Unit) => {
-  selectedUnit.value = unit
-  isModalOpen.value = true
-}
-const closeModal = () => {
-  isModalOpen.value = false
-  setTimeout(() => { selectedUnit.value = null }, 200)
-}
-
-// --- LOGIKA MODAL EXPORT ---
-const isExportModalOpen = ref(false)
-
-// --- LOGIKA MODAL FORM (CRUD) ---
-const isFormModalOpen = ref(false)
-const formMode = ref<'add' | 'edit'>('add')
-const formData = ref<Partial<Unit>>({})
-
-const jenisAlatBeratOptions = [
-  'Caterpillar Excavator 320',
-  'Scania Dump Truck P410',
-  'Komatsu Dozer D85A',
-  'SDLG Wheel Loader LG956',
-  'Hitachi Zaxis 200'
-]
+const jenisOptions = ref<JenisOption[]>([])
 const statusOptions = ['SEHAT', 'WARNING', 'CRITICAL', 'RUSAK']
+const totalPages = computed(() => Math.ceil(total.value / perPage))
 
-const openAddModal = () => {
+// ---- Modal ----
+const isDetailOpen = ref(false)
+const selectedUnit = ref<UnitTambang | null>(null)
+const isFormOpen = ref(false)
+const formMode = ref<'add' | 'edit'>('add')
+const formData = ref<any>({})
+const formError = ref('')
+const formLoading = ref(false)
+const isExportOpen = ref(false)
+
+const { initAuth, user } = useAuth()
+const api = useApi()
+
+// ---- Fetch Units ----
+const fetchUnits = async () => {
+  isLoading.value = true
+  errorMsg.value = ''
+  try {
+    const res = await api.getUnitTambang({
+      page: currentPage.value,
+      per_page: perPage,
+      search: searchQuery.value || undefined,
+      status: filterStatus.value || undefined,
+    }) as any
+    units.value = res.data.data
+    total.value = res.data.total
+  } catch (e: any) {
+    errorMsg.value = e?.data?.message || 'Gagal memuat data unit.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// ---- Fetch Jenis Options (for form dropdown) ----
+const fetchJenisOptions = async () => {
+  try {
+    const res = await api.getJenisAlatBerat({ per_page: 100 }) as any
+    jenisOptions.value = res.data.data.map((j: any) => ({ id: j.id, nama: j.nama }))
+  } catch { /* ignore */ }
+}
+
+onMounted(() => {
+  initAuth()
+  fetchUnits()
+  fetchJenisOptions()
+})
+
+const onSearch = () => { currentPage.value = 1; fetchUnits() }
+const onFilterStatus = () => { currentPage.value = 1; fetchUnits() }
+
+// ---- CRUD ----
+const openDetail = (unit: UnitTambang) => { selectedUnit.value = unit; isDetailOpen.value = true }
+
+const openAdd = () => {
   formMode.value = 'add'
   formData.value = {
-    code: '',
-    type: jenisAlatBeratOptions[0],
-    status: 'SEHAT',
-    health: 100,
-    maintenance: '',
-    savings: 0,
-    img: 'https://placehold.co/400x250?text=Unit+Baru'
+    code: '', jenis_alat_berat_id: jenisOptions.value[0]?.id || '',
+    status: 'SEHAT', health: 100, maintenance: '', savings: 0,
+    img_url: 'https://placehold.co/400x250?text=Unit+Baru',
+    model3d_url: 'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb'
   }
-  isFormModalOpen.value = true
+  formError.value = ''
+  isFormOpen.value = true
 }
 
-const openEditModal = (unit: Unit) => {
+const openEdit = (unit: UnitTambang) => {
   formMode.value = 'edit'
-  formData.value = { ...unit } // Copy data agar tidak langsung merubah tabel sebelum di save
-  isFormModalOpen.value = true
+  formData.value = {
+    id: unit.id, code: unit.code,
+    jenis_alat_berat_id: unit.jenis_alat_berat_id,
+    status: unit.status, health: unit.health,
+    maintenance: unit.maintenance, savings: unit.savings,
+    img_url: unit.img_url || '', model3d_url: unit.model3d_url || ''
+  }
+  formError.value = ''
+  isFormOpen.value = true
 }
 
-const closeFormModal = () => {
-  isFormModalOpen.value = false
-}
-
-const saveUnit = () => {
-  if (formMode.value === 'add') {
-    // Generate ID baru (simulasi)
-    const newId = units.value.length > 0 ? Math.max(...units.value.map(u => u.id)) + 1 : 1
-    units.value.unshift({ id: newId, ...formData.value } as Unit)
-  } else {
-    // Cari index dan update data
-    const index = units.value.findIndex(u => u.id === formData.value.id)
-    if (index !== -1) {
-      units.value[index] = { ...formData.value } as Unit
+const save = async () => {
+  if (!formData.value.code?.trim()) { formError.value = 'Kode unit wajib diisi.'; return }
+  if (!formData.value.jenis_alat_berat_id) { formError.value = 'Jenis alat berat wajib dipilih.'; return }
+  formLoading.value = true
+  formError.value = ''
+  try {
+    const payload = {
+      code: formData.value.code,
+      jenis_alat_berat_id: formData.value.jenis_alat_berat_id,
+      status: formData.value.status,
+      health: Number(formData.value.health),
+      maintenance: formData.value.maintenance,
+      savings: Number(formData.value.savings),
+      img_url: formData.value.img_url || undefined,
+      model3d_url: formData.value.model3d_url || undefined,
     }
+    if (formMode.value === 'add') {
+      await api.createUnitTambang(payload)
+    } else {
+      await api.updateUnitTambang(formData.value.id, payload)
+    }
+    isFormOpen.value = false
+    await fetchUnits()
+  } catch (e: any) {
+    formError.value = e?.data?.message || 'Gagal menyimpan.'
+  } finally {
+    formLoading.value = false
   }
-  closeFormModal()
 }
 
-// Helper warna
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'SEHAT': return 'bg-emerald-400'
-    case 'WARNING': return 'bg-miningYellow'
-    case 'CRITICAL': return 'bg-neoRed text-white'
-    case 'RUSAK': return 'bg-gray-400'
-    default: return 'bg-white'
+const remove = async (unit: UnitTambang) => {
+  if (!confirm(`Hapus unit "${unit.code}"?`)) return
+  try {
+    await api.deleteUnitTambang(unit.id)
+    await fetchUnits()
+  } catch (e: any) {
+    alert(e?.data?.message || 'Gagal menghapus.')
   }
+}
+
+// ---- Helpers ----
+const getStatusColor = (s: string) => ({ SEHAT: 'bg-emerald-400', WARNING: 'bg-miningYellow', CRITICAL: 'bg-neoRed text-white', RUSAK: 'bg-gray-400' }[s] || 'bg-white')
+
+const visiblePages = computed(() => {
+  const max = 3, tp = totalPages.value, cp = currentPage.value
+  if (tp <= max) return Array.from({ length: tp }, (_, i) => i + 1)
+  let start = Math.max(1, cp - 1)
+  let end = Math.min(tp, start + max - 1)
+  if (end === tp) start = Math.max(1, tp - max + 1)
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+})
+
+// CSV export
+const exportCSV = () => {
+  const headers = ['Kode', 'Jenis', 'Status', 'Health', 'Maintenance', 'Savings']
+  const rows = units.value.map(u => [u.code, u.jenis_alat_berat_nama || '', u.status, u.health, u.maintenance, u.savings])
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.download = 'unit_tambang.csv'; a.click()
+  URL.revokeObjectURL(url)
+  isExportOpen.value = false
 }
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-[#F1F1F1] font-mono text-black relative">
-    
-    <aside class="w-72 border-r-4 border-black bg-white p-6 flex flex-col justify-between z-10">
+  <div class="flex min-h-screen bg-[#F1F1F1] font-mono text-black">
+
+    <!-- Sidebar -->
+    <aside class="w-72 border-r-4 border-black bg-white p-6 flex flex-col justify-between z-10 shrink-0">
       <div>
         <div class="mb-10 flex justify-center">
-          <div class="bg-miningYellow border-4 border-black p-4 shadow-neo w-24 h-24 flex items-center justify-center rounded-xl translate-x-[-4px] translate-y-[-4px]">
+          <div class="bg-miningYellow border-4 border-black p-4 shadow-neo w-24 h-24 flex items-center justify-center rounded-xl">
             <span class="text-5xl font-black italic">V</span>
           </div>
         </div>
-
         <nav class="space-y-4">
-        <NuxtLink 
-            v-for="item in menuItems" 
-            :key="item.name"
-            :to="item.path"
-            @click="setActiveMenu(item)"
-            :class="[
-            'w-full flex items-center gap-3 p-3 border-2 font-bold group transition-all cursor-pointer',
-            activeMenu === item.name 
-                ? 'border-black bg-miningYellow shadow-neoHover' 
-                : 'border-transparent hover:border-black hover:bg-white hover:shadow-neoHover'
-            ]"
-        >
-            <div v-if="activeMenu === item.name" class="p-1 border-2 border-black bg-white shrink-0 flex items-center justify-center">
-              <div class="w-2.5 h-2.5 bg-black"></div>
-            </div>
-            <div v-else class="w-2.5 h-2.5 border-2 border-black ml-1.5 shrink-0 bg-transparent"></div>
-            
+          <NuxtLink v-for="item in menuItems" :key="item.name" :to="item.path"
+            @click="activeMenu = item.name"
+            :class="['w-full flex items-center gap-3 p-3 border-2 font-bold transition-all cursor-pointer',
+              activeMenu === item.name ? 'border-black bg-miningYellow shadow-neoHover' : 'border-transparent hover:border-black hover:bg-white hover:shadow-neoHover']">
+            <div v-if="activeMenu === item.name" class="p-1 border-2 border-black bg-white shrink-0"><div class="w-2.5 h-2.5 bg-black"></div></div>
+            <div v-else class="w-2.5 h-2.5 border-2 border-black ml-1.5 shrink-0"></div>
             <div class="flex items-center gap-3 w-full">
-               <div class="flex items-center justify-center shrink-0" v-html="item.icon"></div>
-               <span class="truncate">{{ item.name }}</span>
+              <div class="flex items-center justify-center shrink-0" v-html="item.icon"></div>
+              <span class="truncate">{{ item.name }}</span>
             </div>
-        </NuxtLink>
+          </NuxtLink>
         </nav>
       </div>
     </aside>
 
+    <!-- Main -->
     <main class="flex-1 p-8 overflow-y-auto">
       <header class="flex justify-between items-start mb-10">
         <div>
-          <h1 class="text-6xl font-black uppercase tracking-tighter leading-none">{{ activeMenu }}</h1>
+          <h1 class="text-6xl font-black uppercase tracking-tighter leading-none">Unit Tambang</h1>
           <p class="mt-2 font-bold text-gray-600 bg-white border-b-2 border-black inline-block">Unit yang beroperasi saat ini dan masih aktif berjalan.</p>
         </div>
         <div class="flex items-center gap-3 p-2 border-4 border-black bg-white shadow-neoHover">
           <div class="w-8 h-8 rounded-full border-2 border-black bg-neoBlue"></div>
-          <span class="font-black text-sm">Admin Suki</span>
+          <span class="font-black text-sm">{{ user?.name || 'Admin' }}</span>
         </div>
       </header>
 
-      <div class="flex justify-between items-center mb-8 gap-4">
-        <div class="flex gap-4 flex-1">
-          <div class="relative flex-1 max-w-md">
-            <input type="text" placeholder="Cari Armada..." class="w-full p-4 border-4 border-black shadow-neoHover focus:outline-none focus:bg-miningYellow/10 font-bold placeholder:text-gray-400" />
-          </div>
-          <button class="p-4 border-4 border-black bg-white font-black hover:translate-x-1 hover:translate-y-1 hover:shadow-none shadow-neoHover appearance-none px-10">
-            Cari Unit
-          </button>
-          
+      <div v-if="errorMsg" class="mb-6 p-4 bg-neoRed text-white border-4 border-black font-bold shadow-neo">⚠️ {{ errorMsg }}</div>
 
-            <button @click="isExportModalOpen = true" class="bg-black text-white p-4 font-black shadow-[4px_4px_0px_0px_#FFCC00] flex items-center gap-2 hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all border-2 border-black">
-            EKSPORT DATA <span class="text-miningYellow">↓</span>
-            </button>
+      <!-- Actions Bar -->
+      <div class="flex justify-between items-center mb-8 gap-4 flex-wrap">
+        <div class="flex gap-4 flex-1 flex-wrap">
+          <input v-model="searchQuery" @keyup.enter="onSearch" type="text" placeholder="Cari kode / nama unit..."
+            class="flex-1 min-w-48 p-4 border-4 border-black shadow-neoHover focus:outline-none focus:bg-miningYellow/10 font-bold placeholder:text-gray-400" />
+          <select v-model="filterStatus" @change="onFilterStatus"
+            class="p-4 border-4 border-black bg-white font-black shadow-neoHover appearance-none cursor-pointer px-6">
+            <option value="">Semua Status</option>
+            <option v-for="s in statusOptions" :key="s" :value="s">{{ s }}</option>
+          </select>
+          <button @click="onSearch" class="p-4 border-4 border-black bg-white font-black shadow-neoHover hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all px-8">CARI</button>
+          <button @click="isExportOpen = true" class="bg-black text-white p-4 font-black shadow-[4px_4px_0px_0px_#FFCC00] flex items-center gap-2 hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all border-2 border-black">
+            EKSPORT <span class="text-miningYellow">↓</span>
+          </button>
         </div>
-
-
-            <button @click="openAddModal" class="bg-emerald-400 text-black p-4 font-black shadow-[4px_4px_0px_0px_#000] flex items-center gap-2 hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all border-4 border-black">
-            + TAMBAHKAN UNIT
-          </button>
+        <button @click="openAdd" class="bg-emerald-400 text-black p-4 font-black shadow-[4px_4px_0px_0px_#000] flex items-center gap-2 hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all border-4 border-black">
+          + TAMBAH UNIT
+        </button>
       </div>
 
-      <section class="border-4 border-black bg-white shadow-neo mb-12 overflow-hidden">
+      <!-- Table -->
+      <section class="border-4 border-black bg-white shadow-neo overflow-hidden">
         <table class="w-full border-collapse">
           <thead>
             <tr class="bg-black text-white">
-              <th v-for="h in ['Kode Unik', 'Nama Unit', 'Status', 'Health Score', 'Jadwal', 'Saving', 'Aksi']" :key="h" class="p-4 text-left font-black uppercase text-xs tracking-widest border-r border-white/20">{{ h }}</th>
+              <th v-for="h in ['Kode Unik','Nama Unit','Status','Health','Jadwal','Saving','Aksi']" :key="h"
+                class="p-4 text-left font-black uppercase text-xs tracking-widest border-r border-white/20">{{ h }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="unit in paginatedUnits" :key="unit.code" class="border-b-4 border-black hover:bg-gray-50 transition-colors">
+            <template v-if="isLoading">
+              <tr v-for="i in 5" :key="i" class="border-b-4 border-black">
+                <td v-for="j in 7" :key="j" class="p-4"><div class="h-4 bg-gray-200 animate-pulse rounded"></div></td>
+              </tr>
+            </template>
+            <tr v-else-if="units.length === 0">
+              <td colspan="7" class="p-12 text-center font-bold text-gray-400">
+                {{ searchQuery || filterStatus ? 'Tidak ada unit yang cocok.' : 'Belum ada unit. Klik + TAMBAH UNIT.' }}
+              </td>
+            </tr>
+            <tr v-else v-for="unit in units" :key="unit.id" class="border-b-4 border-black hover:bg-gray-50 transition-colors">
               <td class="p-4 font-black italic">{{ unit.code }}</td>
-              <td class="p-4 font-bold">{{ unit.type }}</td>
+              <td class="p-4 font-bold text-sm">{{ unit.jenis_alat_berat_nama || '—' }}</td>
               <td class="p-4">
-                <span :class="getStatusColor(unit.status)" class="px-3 py-1 border-2 border-black font-black text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                  {{ unit.status }}
-                </span>
+                <span :class="getStatusColor(unit.status)" class="px-2 py-1 border-2 border-black font-black text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">{{ unit.status }}</span>
               </td>
               <td class="p-4 font-black">{{ unit.health }}%</td>
               <td class="p-4 font-bold text-xs">{{ unit.maintenance }}</td>
-              <td class="p-4 font-black" :class="unit.savings > 0 ? 'text-emerald-600' : 'text-neoRed'">
-                {{ unit.savings > 0 ? '+$' : '-$' }}{{ Math.abs(unit.savings).toLocaleString() }}
+              <td class="p-4 font-black text-sm" :class="unit.savings >= 0 ? 'text-emerald-600' : 'text-neoRed'">
+                {{ unit.savings >= 0 ? '+$' : '-$' }}{{ Math.abs(unit.savings).toLocaleString() }}
               </td>
-              <td class="p-4 flex gap-2">
-                <button @click="openModal(unit)" class="bg-miningYellow border-2 border-black px-4 py-1 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all">VIEW</button>
-                <button @click="openEditModal(unit)" class="bg-white border-2 border-black px-4 py-1 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all">EDIT</button>
+              <td class="p-4 flex gap-2 flex-wrap">
+                <button @click="openDetail(unit)" class="bg-miningYellow border-2 border-black px-3 py-1 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all text-xs">VIEW</button>
+                <button @click="openEdit(unit)" class="bg-white border-2 border-black px-3 py-1 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all text-xs">EDIT</button>
+                <button @click="remove(unit)" class="bg-neoRed text-white border-2 border-black px-3 py-1 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all text-xs">DEL</button>
               </td>
             </tr>
           </tbody>
         </table>
 
-        <div class="p-4 border-t-4 border-black bg-white flex justify-end gap-2 flex-wrap">
-          <button @click="goToPage(1)" :disabled="currentPage === 1" class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-black transition-colors" title="Halaman Pertama">&laquo;</button>
-          <button @click="prevPage" :disabled="currentPage === 1" class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-black transition-colors">&lt;</button>
-          
-          <button v-for="page in visiblePages" :key="page" @click="goToPage(page)" :class="currentPage === page ? 'bg-black text-white' : 'bg-white text-black hover:bg-black hover:text-white'" class="w-10 h-10 border-2 border-black flex items-center justify-center font-black transition-colors">
-            {{ page }}
-          </button>
-
-          <button @click="nextPage" :disabled="currentPage === totalPages" class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-black transition-colors">&gt;</button>
-          <button @click="goToPage(totalPages)" :disabled="currentPage === totalPages" class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-black transition-colors" title="Halaman Terakhir">&raquo;</button>
+        <!-- Pagination -->
+        <div class="p-4 border-t-4 border-black bg-white flex justify-between items-center flex-wrap gap-2">
+          <span class="font-bold text-sm text-gray-500">Total: {{ total }} unit</span>
+          <div v-if="totalPages > 1" class="flex gap-2">
+            <button @click="currentPage=1; fetchUnits()" :disabled="currentPage===1" class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 transition-colors">&laquo;</button>
+            <button @click="currentPage--; fetchUnits()" :disabled="currentPage===1" class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 transition-colors">&lt;</button>
+            <button v-for="page in visiblePages" :key="page" @click="currentPage=page; fetchUnits()"
+              :class="currentPage===page ? 'bg-black text-white' : 'bg-white hover:bg-black hover:text-white'"
+              class="w-10 h-10 border-2 border-black flex items-center justify-center font-black transition-colors">{{ page }}</button>
+            <button @click="currentPage++; fetchUnits()" :disabled="currentPage===totalPages" class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 transition-colors">&gt;</button>
+            <button @click="currentPage=totalPages; fetchUnits()" :disabled="currentPage===totalPages" class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 transition-colors">&raquo;</button>
+          </div>
         </div>
       </section>
     </main>
 
-    <div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeModal"></div>
+    <!-- Detail Modal -->
+    <div v-if="isDetailOpen && selectedUnit" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isDetailOpen = false"></div>
       <div class="bg-white border-4 border-black shadow-neo w-full max-w-2xl relative z-10 flex flex-col max-h-[90vh] animate-[popup_0.2s_ease-out]">
         <div class="flex justify-between items-center p-6 border-b-4 border-black bg-miningYellow">
           <h3 class="text-3xl font-black uppercase">Detail Unit</h3>
-          <button @click="closeModal" class="bg-neoRed text-white border-2 border-black w-10 h-10 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all">X</button>
+          <button @click="isDetailOpen = false" class="bg-neoRed text-white border-2 border-black w-10 h-10 font-black hover:shadow-none transition-all">X</button>
         </div>
-        <div class="p-6 overflow-y-auto" v-if="selectedUnit">
+        <div class="p-6 overflow-y-auto">
           <div class="flex flex-col md:flex-row gap-6 mb-6">
-            <div class="w-full md:w-1/2 border-4 border-black bg-gray-100 shadow-neoHover">
-              <img :src="selectedUnit.img" class="w-full h-full object-cover" />
+            <div class="w-full md:w-1/2 border-4 border-black bg-gray-100 shadow-neoHover flex items-center justify-center min-h-[200px] relative overflow-hidden cursor-grab active:cursor-grabbing">
+              <model-viewer
+                v-if="selectedUnit.model3d_url"
+                :key="selectedUnit.id"
+                :src="selectedUnit.model3d_url"
+                alt="Model 3D unit alat berat"
+                camera-controls
+                auto-rotate
+                shadow-intensity="1"
+                class="w-full h-full min-h-[200px] outline-none"
+                style="background-color:#f3f4f6;"
+              ></model-viewer>
+              <img v-else-if="selectedUnit.img_url" :src="selectedUnit.img_url" class="w-full h-full object-cover" />
+              <span v-else class="text-gray-400 font-bold">No Visual</span>
+              <div v-if="selectedUnit.model3d_url" class="absolute bottom-2 right-2 bg-black text-white text-[8px] font-black px-1 pointer-events-none">DRAG 360°</div>
             </div>
             <div class="w-full md:w-1/2 flex flex-col gap-4 justify-center">
-              <div>
-                <p class="text-xs font-bold text-gray-500 uppercase">Kode Unik</p>
-                <p class="text-2xl font-black italic">{{ selectedUnit.code }}</p>
-              </div>
-              <div>
-                <p class="text-xs font-bold text-gray-500 uppercase">Tipe Alat Berat</p>
-                <p class="text-xl font-bold">{{ selectedUnit.type }}</p>
-              </div>
+              <div><p class="text-xs font-bold text-gray-500 uppercase">Kode Unik</p><p class="text-2xl font-black italic">{{ selectedUnit.code }}</p></div>
+              <div><p class="text-xs font-bold text-gray-500 uppercase">Jenis Alat Berat</p><p class="text-xl font-bold">{{ selectedUnit.jenis_alat_berat_nama || '—' }}</p></div>
               <div>
                 <span :class="getStatusColor(selectedUnit.status)" class="px-3 py-1 border-2 border-black font-black text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] inline-block">
                   Status: {{ selectedUnit.status }}
@@ -334,8 +358,8 @@ const getStatusColor = (status: string) => {
             </div>
             <div class="border-2 border-black p-4 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-black text-white">
               <p class="text-xs font-bold uppercase mb-1 text-gray-300">Est. Saving</p>
-              <p class="text-xl font-black mt-2" :class="selectedUnit.savings > 0 ? 'text-miningYellow' : 'text-neoRed'">
-                 {{ selectedUnit.savings > 0 ? '+$' : '-$' }}{{ Math.abs(selectedUnit.savings).toLocaleString() }}
+              <p class="text-xl font-black mt-2" :class="selectedUnit.savings >= 0 ? 'text-miningYellow' : 'text-neoRed'">
+                {{ selectedUnit.savings >= 0 ? '+$' : '-$' }}{{ Math.abs(selectedUnit.savings).toLocaleString() }}
               </p>
             </div>
           </div>
@@ -343,78 +367,78 @@ const getStatusColor = (status: string) => {
       </div>
     </div>
 
-    <div v-if="isFormModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeFormModal"></div>
+    <!-- Form Modal -->
+    <div v-if="isFormOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isFormOpen = false"></div>
       <div class="bg-white border-4 border-black shadow-neo w-full max-w-lg relative z-10 flex flex-col max-h-[90vh] animate-[popup_0.2s_ease-out]">
-        <div class="flex justify-between items-center p-6 border-b-4 border-black" :class="formMode === 'add' ? 'bg-emerald-400' : 'bg-white'">
-          <h3 class="text-3xl font-black uppercase">{{ formMode === 'add' ? 'Tambah Unit' : 'Edit Unit' }}</h3>
-          <button @click="closeFormModal" class="bg-neoRed text-white border-2 border-black w-10 h-10 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all">X</button>
+        <div class="flex justify-between items-center p-6 border-b-4 border-black" :class="formMode==='add' ? 'bg-emerald-400' : 'bg-white'">
+          <h3 class="text-2xl font-black uppercase">{{ formMode==='add' ? 'Tambah Unit' : 'Edit Unit' }}</h3>
+          <button @click="isFormOpen = false" class="bg-neoRed text-white border-2 border-black w-10 h-10 font-black hover:shadow-none transition-all">X</button>
         </div>
-        
         <div class="p-6 overflow-y-auto flex flex-col gap-4">
+          <div v-if="formError" class="p-3 bg-neoRed text-white border-2 border-black font-bold text-sm">{{ formError }}</div>
           <div>
-            <label class="block text-sm font-black uppercase mb-2">Kode Unik</label>
+            <label class="block text-sm font-black uppercase mb-2">Kode Unik <span class="text-neoRed">*</span></label>
             <input v-model="formData.code" type="text" placeholder="Cth: EXC-320-05" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:bg-miningYellow/10 font-bold" />
           </div>
-          
           <div>
-            <label class="block text-sm font-black uppercase mb-2">Jenis Alat Berat</label>
-            <select v-model="formData.type" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:bg-miningYellow/10 font-bold appearance-none cursor-pointer">
-              <option v-for="jenis in jenisAlatBeratOptions" :key="jenis" :value="jenis">{{ jenis }}</option>
+            <label class="block text-sm font-black uppercase mb-2">Jenis Alat Berat <span class="text-neoRed">*</span></label>
+            <select v-model="formData.jenis_alat_berat_id" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none font-bold appearance-none cursor-pointer">
+              <option value="">— Pilih Jenis —</option>
+              <option v-for="j in jenisOptions" :key="j.id" :value="j.id">{{ j.nama }}</option>
             </select>
           </div>
-          
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-black uppercase mb-2">Status</label>
-              <select v-model="formData.status" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:bg-miningYellow/10 font-bold appearance-none cursor-pointer">
-                <option v-for="stat in statusOptions" :key="stat" :value="stat">{{ stat }}</option>
+              <select v-model="formData.status" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none font-bold appearance-none cursor-pointer">
+                <option v-for="s in statusOptions" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
             <div>
-              <label class="block text-sm font-black uppercase mb-2">Health Score (%)</label>
-              <input v-model="formData.health" type="number" min="0" max="100" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:bg-miningYellow/10 font-bold" />
+              <label class="block text-sm font-black uppercase mb-2">Health (%)</label>
+              <input v-model.number="formData.health" type="number" min="0" max="100" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none font-bold" />
             </div>
           </div>
-          
           <div>
             <label class="block text-sm font-black uppercase mb-2">Jadwal Maintenance</label>
-            <input v-model="formData.maintenance" type="text" placeholder="Cth: 50 Jam Lagi" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:bg-miningYellow/10 font-bold" />
+            <input v-model="formData.maintenance" type="text" placeholder="Cth: 50 Jam Lagi" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none font-bold" />
           </div>
-
           <div>
             <label class="block text-sm font-black uppercase mb-2">Est. Savings ($)</label>
-            <input v-model="formData.savings" type="number" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:bg-miningYellow/10 font-bold" />
+            <input v-model.number="formData.savings" type="number" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none font-bold" />
+          </div>
+          <div>
+            <label class="block text-sm font-black uppercase mb-2">URL Gambar</label>
+            <input v-model="formData.img_url" type="text" placeholder="https://..." class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none font-bold text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-black uppercase mb-2">URL Model 3D (.glb)</label>
+            <input v-model="formData.model3d_url" type="text" placeholder="https://....glb" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none font-bold text-sm" />
+            <p class="text-[10px] font-bold text-gray-500 mt-1">Format GLB untuk visual 3D unit. Kosongkan untuk pakai gambar biasa.</p>
           </div>
         </div>
-
         <div class="p-6 border-t-4 border-black bg-gray-50 flex justify-end gap-4">
-          <button @click="closeFormModal" class="px-6 py-3 border-4 border-black bg-white font-black hover:bg-gray-200 transition-colors">BATAL</button>
-          <button @click="saveUnit" class="px-6 py-3 border-4 border-black bg-black text-white font-black shadow-[4px_4px_0px_0px_#FFCC00] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all">
-            SIMPAN DATA
+          <button @click="isFormOpen = false" class="px-6 py-3 border-4 border-black bg-white font-black hover:bg-gray-200 transition-colors">BATAL</button>
+          <button @click="save" :disabled="formLoading" class="px-6 py-3 border-4 border-black bg-black text-white font-black shadow-[4px_4px_0px_0px_#FFCC00] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all disabled:opacity-60">
+            {{ formLoading ? 'MENYIMPAN...' : 'SIMPAN' }}
           </button>
         </div>
       </div>
     </div>
 
-    <div v-if="isExportModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isExportModalOpen = false"></div>
-      <div class="bg-miningYellow border-4 border-black shadow-neo w-full max-w-md relative z-10 flex flex-col p-8 text-center animate-[popup_0.2s_ease-out]">
+    <!-- Export Modal -->
+    <div v-if="isExportOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isExportOpen = false"></div>
+      <div class="bg-miningYellow border-4 border-black shadow-neo w-full max-w-md relative z-10 p-8 text-center animate-[popup_0.2s_ease-out]">
         <h3 class="text-3xl font-black uppercase mb-4">Eksport Data</h3>
-        <p class="font-bold mb-8">Pilih format file untuk mengunduh laporan armada operasional.</p>
-        
+        <p class="font-bold mb-8">Pilih format file untuk mengunduh data unit tambang.</p>
         <div class="flex flex-col gap-4">
-          <button @click="isExportModalOpen = false" class="w-full p-4 border-4 border-black bg-white font-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all flex justify-between items-center">
-            <span>Eksport sebagai CSV</span>
-            <span class="text-xl">📄</span>
-          </button>
-          <button @click="isExportModalOpen = false" class="w-full p-4 border-4 border-black bg-white font-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all flex justify-between items-center">
-            <span>Eksport sebagai PDF</span>
-            <span class="text-xl">📊</span>
+          <button @click="exportCSV" class="w-full p-4 border-4 border-black bg-white font-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all flex justify-between items-center">
+            <span>Eksport sebagai CSV</span><span class="text-xl">📄</span>
           </button>
         </div>
-        
-        <button @click="isExportModalOpen = false" class="mt-8 underline font-bold hover:text-white transition-colors">Tutup Jendela</button>
+        <button @click="isExportOpen = false" class="mt-8 underline font-bold hover:text-white transition-colors">Tutup</button>
       </div>
     </div>
 
@@ -423,19 +447,7 @@ const getStatusColor = (status: string) => {
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@900&family=Space+Mono:wght@400;700&display=swap');
-
-body {
-  font-family: 'Space Mono', monospace;
-}
-
-h1, h2, h3, button, .font-black {
-  font-family: 'Public Sans', sans-serif;
-  font-weight: 900;
-}
-
-/* Animasi Muncul Modal Pop-up */
-@keyframes popup {
-  0% { transform: scale(0.95) translateY(10px); opacity: 0; }
-  100% { transform: scale(1) translateY(0); opacity: 1; }
-}
+body { font-family: 'Space Mono', monospace; }
+h1,h2,h3,button,.font-black { font-family: 'Public Sans', sans-serif; font-weight: 900; }
+@keyframes popup { 0%{transform:scale(0.95) translateY(10px);opacity:0} 100%{transform:scale(1) translateY(0);opacity:1} }
 </style>

@@ -1,0 +1,8 @@
+.nuxt
+.output
+dist
+node_modules
+--host
+*.log
+.git
+README.md

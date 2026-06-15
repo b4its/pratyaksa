@@ -1,312 +1,179 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 
-// --- LOGIKA SKELETON LOADING ---
+// ---- Sidebar ----
+const menuItems = [
+  { name: 'Dashboard',        path: '/panel/dashboard',         icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><rect width="7" height="9" x="3" y="3"/><rect width="7" height="5" x="14" y="3"/><rect width="7" height="9" x="14" y="12"/><rect width="7" height="5" x="3" y="16"/></svg>` },
+  { name: 'Jenis Alat Berat', path: '/panel/jenis_alat_berat',  icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-9l-2.5-3.5H14v12h3"/><path d="M14 6h4.5"/><circle cx="18.5" cy="17.5" r="2.5"/><circle cx="5.5" cy="17.5" r="2.5"/></svg>` },
+  { name: 'Unit Tambang',     path: '/panel/unit_tambang',       icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>` },
+  { name: 'Analisa Kerusakan', path: '/panel/analisa',           icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>` },
+  { name: 'Kembali',          path: '../',                       icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>` },
+]
+const activeMenu = ref('Dashboard')
+const setActiveMenu = (menu: any) => { activeMenu.value = menu.name }
+
+// ---- Loading & Auth ----
 const isLoading = ref(true)
+const { initAuth, user } = useAuth()
+const api = useApi()
 
-// --- LOGIKA SIDEBAR NAVIGASI ---
-interface MenuItem {
-  name: string
-  path: string
-  icon: string
+// ---- KPI dari backend ----
+const dashboardKPI = ref({ totalUnits: 0, activeUnits: 0, criticalUnits: 0, totalSavings: 0 })
+
+// ---- Status Distribution dari backend ----
+const statusColorMap: Record<string, string> = {
+  Sehat: 'bg-emerald-400',
+  Warning: 'bg-miningYellow',
+  Critical: 'bg-neoRed',
+  Rusak: 'bg-red-800',
 }
+const statusDistribution = ref<{ label: string; jumlah: number; color: string }[]>([])
 
-const menuItems = ref<MenuItem[]>([
-  { 
-    name: 'Dashboard', 
-    path: '/panel/dashboard',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><rect width="7" height="9" x="3" y="3"/><rect width="7" height="5" x="14" y="3"/><rect width="7" height="9" x="14" y="12"/><rect width="7" height="5" x="3" y="16"/></svg>`
-  },
-  { 
-    name: 'Jenis Alat Berat', 
-    path: '/panel/jenis_alat_berat',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-9l-2.5-3.5H14v12h3"/><path d="M14 6h4.5"/><circle cx="18.5" cy="17.5" r="2.5"/><circle cx="5.5" cy="17.5" r="2.5"/></svg>`
-  },
-  { 
-    name: 'Unit Tambang', 
-    path: '/panel/unit_tambang',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>`
-  },
-  { 
-    name: 'Analisa Kerusakan', 
-    path: '/panel/analisa',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`
-  },
-  { 
-    name: 'Kembali', 
-    path: '../',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>`
-  },
-])
-
-const activeMenu = ref('Dashboard') 
-
-const setActiveMenu = (menu: MenuItem) => {
-  activeMenu.value = menu.name
-}
-
-// --- DATA DUMMY DASHBOARD (CHART & KPI) ---
-const dashboardKPI = ref({
-  totalUnits: 124,
-  activeUnits: 98,
-  criticalUnits: 12,
-  totalSavings: 45200
-})
-
-const statusDistribution = ref([
-  { label: 'Sehat', jumlah: 65, color: 'bg-emerald-400' },
-  { label: 'Warning', jumlah: 20, color: 'bg-miningYellow' },
-  { label: 'Critical', jumlah: 10, color: 'bg-neoRed' },
-  { label: 'Rusak', jumlah: 7, color: 'bg-red-800' },
-  { label: 'Sedang Perbaikan', jumlah: 5, color: 'bg-gray-400' },
-])
-
-// --- DATA MULTI-LINE CHART (SEHAT, WARNING, CRITICAL) ---
+// ---- Monthly fleet data & map locations dari backend ----
 interface FleetStatusData {
   month: string
-  sehat: { val: number, units: string[] }
-  warning: { val: number, units: string[] }
-  critical: { val: number, units: string[] }
+  sehat: { val: number; units: string[] }
+  warning: { val: number; units: string[] }
+  critical: { val: number; units: string[] }
 }
+const monthlyFleetData = ref<FleetStatusData[]>([])
+const mapLocations = ref<any[]>([])
 
-const monthlyFleetData = ref<FleetStatusData[]>([
-  { month: 'Jan', sehat: { val: 75, units: ['EX-001', 'EX-002', 'HT-012'] }, warning: { val: 15, units: ['DZ-003', 'DZ-004', 'DZ-005', 'DZ-006'] }, critical: { val: 10, units: ['HT-005'] } },
-  { month: 'Feb', sehat: { val: 72, units: ['EX-001', 'HT-012'] }, warning: { val: 18, units: ['EX-002', 'DZ-003'] }, critical: { val: 10, units: ['HT-005'] } },
-  { month: 'Mar', sehat: { val: 68, units: ['EX-001', 'EX-015', 'EX-016', 'EX-017', 'HT-019'] }, warning: { val: 22, units: ['HT-012', 'EX-002'] }, critical: { val: 10, units: ['HT-005', 'DZ-003'] } },
-  { month: 'Apr', sehat: { val: 80, units: ['EX-001', 'EX-002', 'HT-012', 'DZ-003'] }, warning: { val: 15, units: ['HT-005'] }, critical: { val: 5, units: ['EX-009'] } },
-  { month: 'Mei', sehat: { val: 85, units: ['EX-001', 'EX-002', 'HT-012', 'DZ-003', 'HT-005'] }, warning: { val: 10, units: ['EX-009'] }, critical: { val: 5, units: ['DZ-008'] } },
-  { month: 'Jun', sehat: { val: 82, units: ['EX-001', 'EX-002', 'HT-012', 'DZ-003'] }, warning: { val: 10, units: ['HT-005'] }, critical: { val: 8, units: ['DZ-008', 'EX-009'] } },
-  { month: 'Jul', sehat: { val: 78, units: ['EX-001', 'HT-012', 'DZ-003'] }, warning: { val: 15, units: ['EX-002', 'HT-005'] }, critical: { val: 7, units: ['DZ-008'] } },
-  { month: 'Ags', sehat: { val: 70, units: ['EX-001', 'DZ-003'] }, warning: { val: 20, units: ['HT-012', 'EX-002'] }, critical: { val: 10, units: ['HT-005', 'DZ-008'] } },
-  { month: 'Sep', sehat: { val: 65, units: ['EX-001'] }, warning: { val: 20, units: ['DZ-003', 'HT-012'] }, critical: { val: 15, units: ['EX-002', 'HT-005', 'DZ-008'] } },
-  { month: 'Okt', sehat: { val: 60, units: ['EX-011'] }, warning: { val: 25, units: ['EX-001', 'DZ-003'] }, critical: { val: 15, units: ['HT-012', 'EX-002', 'HT-005'] } },
-  { month: 'Nov', sehat: { val: 75, units: ['EX-011', 'EX-001', 'HT-012'] }, warning: { val: 15, units: ['DZ-003'] }, critical: { val: 10, units: ['EX-002'] } },
-  { month: 'Des', sehat: { val: 88, units: ['EX-011', 'EX-001', 'HT-012', 'DZ-003', 'EX-002'] }, warning: { val: 10, units: ['HT-005'] }, critical: { val: 2, units: ['DZ-008'] } },
-])
-
-// --- LOGIKA MODAL DETAIL BULAN ---
+// ---- Modal bulan ----
 const isMonthDetailModalOpen = ref(false)
 const selectedMonthData = ref<FleetStatusData | null>(null)
+const openMonthDetail = (i: number) => { selectedMonthData.value = monthlyFleetData.value[i]; isMonthDetailModalOpen.value = true }
+const closeMonthDetail = () => { isMonthDetailModalOpen.value = false; setTimeout(() => { selectedMonthData.value = null }, 200) }
 
-const openMonthDetail = (dataIndex: number) => {
-  selectedMonthData.value = monthlyFleetData.value[dataIndex]
-  isMonthDetailModalOpen.value = true
+// ---- Chart instance ----
+let utilizationChart: any = null
+
+// ---- Fetch dashboard stats ----
+const loadDashboard = async () => {
+  try {
+    const res = await api.getDashboardStats() as any
+    const data = res.data
+
+    dashboardKPI.value = {
+      totalUnits: data.total_units,
+      activeUnits: data.active_units,
+      criticalUnits: data.critical_units,
+      totalSavings: data.total_savings,
+    }
+
+    statusDistribution.value = data.status_distribution.map((s: any) => ({
+      label: s.label,
+      jumlah: s.jumlah,
+      color: statusColorMap[s.label] || 'bg-gray-400',
+    }))
+
+    monthlyFleetData.value = data.monthly_fleet_data
+    mapLocations.value = data.map_locations
+  } catch (e) {
+    console.error('Failed to load dashboard stats', e)
+  }
 }
-
-const closeMonthDetail = () => {
-  isMonthDetailModalOpen.value = false
-  setTimeout(() => { selectedMonthData.value = null }, 200)
-}
-
-// --- DATA KOORDINAT & TELEMETRI LENGKAP PETA ---
-const mapLocations = ref([
-  { id: 1, unit: 'EX-003', type: 'Excavator 320', lat: -0.5005, lng: 117.1510, status: 'Normal', level: 'L', colorHex: '#34d399', fuel: '78%', operator: 'Budi S.', speed: '0 km/h', temp: '85°C', lastUpdate: '2 mnt lalu' },
-  { id: 2, unit: 'HT-019', type: 'Haul Truck', lat: -0.5030, lng: 117.1470, status: 'Normal', level: 'M', colorHex: '#34d399', fuel: '45%', operator: 'Joko P.', speed: '25 km/h', temp: '90°C', lastUpdate: '1 mnt lalu' },
-  { id: 3, unit: 'EX-007', type: 'Excavator 336', lat: -0.4990, lng: 117.1560, status: 'High', level: 'H', colorHex: '#facc15', fuel: '20%', operator: 'Agus T.', speed: '0 km/h', temp: '105°C', lastUpdate: 'Baru saja' },
-  { id: 4, unit: 'DZ-011', type: 'Dozer D85A', lat: -0.5050, lng: 117.1495, status: 'High', level: 'H', colorHex: '#facc15', fuel: '55%', operator: 'Rian M.', speed: '5 km/h', temp: '98°C', lastUpdate: '5 mnt lalu' },
-  { id: 5, unit: 'HT-023', type: 'Haul Truck', lat: -0.5075, lng: 117.1450, status: 'Critical', level: 'I', colorHex: '#f87171', fuel: '10%', operator: 'Deni R.', speed: '0 km/h', temp: '120°C', lastUpdate: '10 mnt lalu' },
-  { id: 6, unit: 'HT-021', type: 'Haul Truck', lat: -0.5040, lng: 117.1530, status: 'Normal', level: 'L', colorHex: '#34d399', fuel: '80%', operator: 'Siti N.', speed: '30 km/h', temp: '88°C', lastUpdate: 'Baru saja' },
-  { id: 7, unit: 'HT-025', type: 'Haul Truck', lat: -0.5060, lng: 117.1585, status: 'Normal', level: 'L', colorHex: '#34d399', fuel: '65%', operator: 'Eko W.', speed: '22 km/h', temp: '82°C', lastUpdate: '3 mnt lalu' },
-])
-
-// --- INISIALISASI PETA, SKELETON, DAN CHART.JS ---
-let utilizationChart: any = null;
 
 onMounted(async () => {
-  setTimeout(async () => {
-    isLoading.value = false
-    await nextTick()
+  initAuth()
+  await loadDashboard()
+  isLoading.value = false
+  await nextTick()
 
-    if (typeof window !== 'undefined') {
-      
-      // 1. INISIALISASI CHART.JS
-      if (document.getElementById('utilizationChart')) {
-        // Menggunakan dynamic import untuk menghindari error SSR di Nuxt
-        const { default: Chart } = await import('chart.js/auto')
-        
-        const ctx = document.getElementById('utilizationChart') as HTMLCanvasElement
-        
-        utilizationChart = new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: monthlyFleetData.value.map(d => d.month),
-            datasets: [
-              {
-                label: 'Sehat',
-                data: monthlyFleetData.value.map(d => d.sehat.val),
-                borderColor: '#34d399',
-                backgroundColor: '#34d399',
-                borderWidth: 3, // Garis tidak terlalu tebal
-                pointRadius: 4, // Titik lebih rapi
-                pointHoverRadius: 6,
-                pointBorderColor: '#000',
-                pointBorderWidth: 2,
-                tension: 0, // Garis kaku ala brutalism
+  if (typeof window !== 'undefined') {
+    // Chart.js
+    if (document.getElementById('utilizationChart') && monthlyFleetData.value.length > 0) {
+      const { default: Chart } = await import('chart.js/auto')
+      const ctx = document.getElementById('utilizationChart') as HTMLCanvasElement
+      utilizationChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: monthlyFleetData.value.map(d => d.month),
+          datasets: [
+            { label: 'Sehat',    data: monthlyFleetData.value.map(d => d.sehat.val),    borderColor: '#34d399', backgroundColor: '#34d399', borderWidth: 3, pointRadius: 4, pointHoverRadius: 6, pointBorderColor: '#000', pointBorderWidth: 2, tension: 0 },
+            { label: 'Warning',  data: monthlyFleetData.value.map(d => d.warning.val),  borderColor: '#facc15', backgroundColor: '#facc15', borderWidth: 3, pointRadius: 4, pointHoverRadius: 6, pointBorderColor: '#000', pointBorderWidth: 2, tension: 0 },
+            { label: 'Critical', data: monthlyFleetData.value.map(d => d.critical.val), borderColor: '#f87171', backgroundColor: '#f87171', borderWidth: 3, pointRadius: 4, pointHoverRadius: 6, pointBorderColor: '#000', pointBorderWidth: 2, tension: 0 },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          layout: { padding: 10 },
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#fff', titleColor: '#000', bodyColor: '#000', borderColor: '#000', borderWidth: 3, padding: 12, cornerRadius: 0,
+              titleFont: { family: 'Public Sans', size: 14, weight: 'bold' },
+              bodyFont: { family: 'Space Mono', size: 12, weight: 'bold' },
+              boxPadding: 6, usePointStyle: true,
+              callbacks: {
+                title: (ctx) => `Bulan: ${ctx[0].label}`,
+                label: (ctx) => {
+                  const m = monthlyFleetData.value[ctx.dataIndex]
+                  const map = [m?.sehat, m?.warning, m?.critical]
+                  const item = map[ctx.datasetIndex]
+                  const labels = ['Sehat', 'Warning', 'Critical']
+                  const units = item?.units?.slice(0, 2).join(', ') || '-'
+                  const extra = item?.units?.length > 2 ? ` (+${item.units.length - 2} unit...)` : ''
+                  return `${labels[ctx.datasetIndex]}: ${ctx.raw}% | ${units}${extra}`
+                },
+                afterBody: () => '\n(Klik titik untuk rincian data)',
               },
-              {
-                label: 'Warning',
-                data: monthlyFleetData.value.map(d => d.warning.val),
-                borderColor: '#facc15',
-                backgroundColor: '#facc15',
-                borderWidth: 3,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                pointBorderColor: '#000',
-                pointBorderWidth: 2,
-                tension: 0,
-              },
-              {
-                label: 'Critical',
-                data: monthlyFleetData.value.map(d => d.critical.val),
-                borderColor: '#f87171',
-                backgroundColor: '#f87171',
-                borderWidth: 3,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                pointBorderColor: '#000',
-                pointBorderWidth: 2,
-                tension: 0,
-              }
-            ]
+            },
           },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: { padding: 10 },
-            interaction: {
-              mode: 'index',
-              intersect: false,
-            },
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                backgroundColor: '#fff',
-                titleColor: '#000',
-                bodyColor: '#000',
-                borderColor: '#000',
-                borderWidth: 3,
-                padding: 12,
-                cornerRadius: 0,
-                titleFont: { family: 'Public Sans', size: 14, weight: 'bold' },
-                bodyFont: { family: 'Space Mono', size: 12, weight: 'bold' },
-                boxPadding: 6,
-                usePointStyle: true,
-                callbacks: {
-                  title: (context) => `Bulan: ${context[0].label}`,
-                  label: (context) => {
-                    const dataIndex = context.dataIndex;
-                    const datasetIndex = context.datasetIndex;
-                    const monthData = monthlyFleetData.value[dataIndex];
-                    
-                    let units: string[] = [];
-                    let status = '';
-                    
-                    if (datasetIndex === 0) { units = monthData.sehat.units; status = 'Sehat'; }
-                    else if (datasetIndex === 1) { units = monthData.warning.units; status = 'Warning'; }
-                    else if (datasetIndex === 2) { units = monthData.critical.units; status = 'Critical'; }
+          scales: {
+            x: { grid: { color: '#E5E7EB' }, ticks: { font: { family: 'Public Sans', weight: 'bold' }, color: '#000' }, border: { color: '#000', width: 4 } },
+            y: { min: 0, max: 100, grid: { color: '#E5E7EB', borderDash: [4, 4] }, ticks: { font: { family: 'Space Mono', weight: 'bold' }, color: '#000', stepSize: 20 }, border: { color: '#000', width: 4 } },
+          },
+          onClick: (_, elements) => { if (elements.length > 0) openMonthDetail(elements[0].index) },
+        },
+      })
+    }
 
-                    // LIMITASI TEXT AGAR TOOLTIP TIDAK OVERFLOW
-                    const maxDisplay = 2;
-                    let unitStr = units.slice(0, maxDisplay).join(', ');
-                    if (units.length > maxDisplay) {
-                      unitStr += ` (+${units.length - maxDisplay} unit...)`;
-                    }
+    // Leaflet Map
+    if (document.getElementById('mining-map') && mapLocations.value.length > 0) {
+      const L = (await import('leaflet')).default
+      const map = L.map('mining-map', { center: [-0.5032, 117.1536], zoom: 15, zoomControl: false })
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map)
 
-                    return `${status}: ${context.raw}% | ${units.length > 0 ? unitStr : '-'}`;
-                  },
-                  afterBody: () => '\n(Klik titik untuk rincian data)'
-                }
-              }
-            },
-            scales: {
-              x: {
-                grid: { color: '#E5E7EB', tickColor: '#000' },
-                ticks: { font: { family: 'Public Sans', weight: 'bold' }, color: '#000' },
-                border: { color: '#000', width: 4 }
-              },
-              y: {
-                min: 0, max: 100,
-                grid: { color: '#E5E7EB', borderDash: [4, 4] },
-                ticks: { font: { family: 'Space Mono', weight: 'bold' }, color: '#000', stepSize: 20 },
-                border: { color: '#000', width: 4 }
-              }
-            },
-            onClick: (event, elements) => {
-              if (elements.length > 0) {
-                // Ambil index data bulan yang diklik, dan buka modal
-                const dataIndex = elements[0].index;
-                openMonthDetail(dataIndex);
-              }
-            }
-          }
+      mapLocations.value.forEach((loc: any) => {
+        const icon = L.divIcon({
+          className: 'custom-fleet-marker',
+          html: `<div style="display:flex;flex-direction:column;align-items:center;">
+            <div style="background-color:${loc.color_hex};width:26px;height:26px;border-radius:50%;border:2px solid black;display:flex;align-items:center;justify-content:center;color:black;font-weight:900;font-size:12px;box-shadow:2px 2px 0px rgba(0,0,0,1);font-family:sans-serif;">${loc.level}</div>
+            <div style="background-color:#000;color:white;font-size:11px;font-weight:900;padding:2px 6px;border-radius:4px;margin-top:-6px;box-shadow:2px 2px 0px rgba(0,0,0,1);white-space:nowrap;font-family:'Space Mono',monospace;">${loc.unit}</div>
+          </div>`,
+          iconSize: [50, 50], iconAnchor: [25, 25], popupAnchor: [0, -20],
         })
-      }
-
-      // 2. INISIALISASI LEAFLET MAP
-      if (document.getElementById('mining-map')) {
-        const L = (await import('leaflet')).default
-        const map = L.map('mining-map', {
-          center: [-0.5032, 117.1536],
-          zoom: 15,
-          zoomControl: false 
-        })
-
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map)
-
-        mapLocations.value.forEach(loc => {
-          const customIcon = L.divIcon({
-            className: 'custom-fleet-marker',
-            html: `
-              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                <div style="background-color: ${loc.colorHex}; width: 26px; height: 26px; border-radius: 50%; border: 2px solid black; display: flex; align-items: center; justify-content: center; color: black; font-weight: 900; font-size: 12px; z-index: 10; box-shadow: 2px 2px 0px rgba(0,0,0,1); font-family: sans-serif;">
-                  ${loc.level}
-                </div>
-                <div style="background-color: #000; color: white; font-size: 11px; font-weight: 900; padding: 2px 6px; border-radius: 4px; margin-top: -6px; box-shadow: 2px 2px 0px rgba(0,0,0,1); white-space: nowrap; font-family: 'Space Mono', monospace; letter-spacing: -0.5px;">
-                  ${loc.unit}
-                </div>
-              </div>
-            `,
-            iconSize: [50, 50],
-            iconAnchor: [25, 25],
-            popupAnchor: [0, -20]
-          })
-
-          const marker = L.marker([loc.lat, loc.lng], { icon: customIcon }).addTo(map)
-          
-          const popupHtml = `
-            <div style="font-family: 'Public Sans', sans-serif; min-width: 220px; border: 4px solid black; box-shadow: 4px 4px 0px rgba(0,0,0,1);">
-              <div style="background-color: ${loc.colorHex}; color: #000; padding: 10px; border-bottom: 4px solid black;">
-                <h4 style="font-weight: 900; font-size: 18px; margin: 0; text-transform: uppercase;">${loc.unit}</h4>
-                <p style="margin: 0; font-size: 12px; font-weight: bold;">${loc.type}</p>
-              </div>
-              <div style="padding: 10px; background-color: #fff;">
-                <table style="width: 100%; font-size: 12px; font-weight: bold; border-collapse: collapse;">
-                  <tr><td style="padding-bottom: 4px;">Status</td><td style="font-weight: 900; text-align: right;">${loc.status}</td></tr>
-                  <tr><td style="padding-bottom: 4px;">Operator</td><td style="font-weight: 900; text-align: right;">${loc.operator}</td></tr>
-                  <tr><td style="padding-bottom: 4px;">Speed</td><td style="font-weight: 900; text-align: right;">${loc.speed}</td></tr>
-                  <tr><td style="padding-bottom: 4px;">Suhu Mesin</td><td style="font-weight: 900; text-align: right; color: ${loc.temp > '100' ? 'red' : 'inherit'}">${loc.temp}</td></tr>
-                  <tr><td style="padding-bottom: 8px;">Fuel Level</td><td style="font-weight: 900; text-align: right;">${loc.fuel}</td></tr>
-                </table>
-                <div style="margin-top: 8px; padding-top: 8px; border-top: 2px dashed #000; font-size: 10px; text-align: center;">
-                  Kordinat: ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}<br/>
-                  <b>Terakhir update: ${loc.lastUpdate}</b>
-                </div>
+        const marker = L.marker([loc.lat, loc.lng], { icon }).addTo(map)
+        marker.bindPopup(`
+          <div style="font-family:'Public Sans',sans-serif;min-width:220px;border:4px solid black;box-shadow:4px 4px 0px rgba(0,0,0,1);">
+            <div style="background-color:${loc.color_hex};color:#000;padding:10px;border-bottom:4px solid black;">
+              <h4 style="font-weight:900;font-size:18px;margin:0;text-transform:uppercase;">${loc.unit}</h4>
+              <p style="margin:0;font-size:12px;font-weight:bold;">${loc.unit_type}</p>
+            </div>
+            <div style="padding:10px;background-color:#fff;">
+              <table style="width:100%;font-size:12px;font-weight:bold;border-collapse:collapse;">
+                <tr><td style="padding-bottom:4px;">Status</td><td style="font-weight:900;text-align:right;">${loc.status}</td></tr>
+                <tr><td style="padding-bottom:4px;">Operator</td><td style="font-weight:900;text-align:right;">${loc.operator}</td></tr>
+                <tr><td style="padding-bottom:4px;">Speed</td><td style="font-weight:900;text-align:right;">${loc.speed}</td></tr>
+                <tr><td style="padding-bottom:4px;">Suhu Mesin</td><td style="font-weight:900;text-align:right;">${loc.temp}</td></tr>
+                <tr><td>Fuel Level</td><td style="font-weight:900;text-align:right;">${loc.fuel}</td></tr>
+              </table>
+              <div style="margin-top:8px;padding-top:8px;border-top:2px dashed #000;font-size:10px;text-align:center;">
+                Koordinat: ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}<br/>
+                <b>Update: ${loc.last_update}</b>
               </div>
             </div>
-          `
-          marker.bindPopup(popupHtml, {
-            closeButton: false, 
-            className: 'custom-leaflet-popup'
-          })
-        })
-      }
+          </div>`, { closeButton: false, className: 'custom-leaflet-popup' })
+      })
     }
-  }, 1500)
+  }
 })
 
-// --- LOGIKA MODAL LAPORAN KESELURUHAN ---
+// ---- Modal laporan ----
 const isReportModalOpen = ref(false)
 const openReportModal = () => { isReportModalOpen.value = true }
 const closeReportModal = () => { isReportModalOpen.value = false }
@@ -363,7 +230,7 @@ const closeReportModal = () => { isReportModalOpen.value = false }
         </div>
         <div class="flex items-center gap-3 p-2 border-4 border-black bg-white shadow-neoHover shrink-0">
           <div class="w-8 h-8 rounded-full border-2 border-black bg-neoBlue"></div>
-          <span class="font-black text-sm">Admin Suki</span>
+          <span class="font-black text-sm">{{ user?.name || 'Admin' }}</span>
         </div>
       </header>
 

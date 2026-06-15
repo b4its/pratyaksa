@@ -104,6 +104,11 @@
           <span class="font-bold text-black uppercase text-xs tracking-wider">Kata sandi tidak cocok!</span>
         </div>
 
+        <div v-if="errorMessage" class="bg-red-400 border-4 border-black px-4 py-3 flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3" stroke-linecap="square"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span class="font-bold text-black text-sm">{{ errorMessage }}</span>
+        </div>
+
         <button 
           type="submit" 
           :disabled="isLoading || passwordMismatch"
@@ -160,6 +165,7 @@ const form = reactive({
 const isLoading = ref(false)
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
+const errorMessage = ref('')
 
 // Sinkronisasi Tema (Fix TypeScript via import.meta.client)
 onMounted(() => {
@@ -186,12 +192,15 @@ const handleRegister = async () => {
   if (passwordMismatch.value || !form.password || !form.name || !form.email) return
 
   isLoading.value = true
+  errorMessage.value = ''
   
   try {
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    console.log('Register success for:', form.email)
-    await router.push('/account/login')
-  } catch (error) {
+    const auth = useAuth()
+    await auth.register(form.name, form.email, form.password)
+    await router.push('/panel/dashboard')
+  } catch (error: any) {
+    const msg = error?.data?.message || error?.message || 'Pendaftaran gagal. Coba lagi.'
+    errorMessage.value = msg
     console.error('Registration failed', error)
   } finally {
     isLoading.value = false

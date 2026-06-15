@@ -12,6 +12,22 @@ export default defineNuxtConfig({
     'shadcn-nuxt'
   ],
 
+  // Daftarkan <model-viewer> (Google) sebagai custom element agar Vue tidak warning
+  vue: {
+    compilerOptions: {
+      isCustomElement: (tag) => tag === 'model-viewer',
+    },
+  },
+
+  // Runtime config — NUXT_PUBLIC_API_BASE bisa di-override via env var
+  // Di production (Docker): /api/v1  — request melewati Nginx → backend
+  // Di development lokal: http://localhost:8080/api/v1
+  runtimeConfig: {
+    public: {
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080/api/v1',
+    },
+  },
+
   shadcn: {
     /** Prefix untuk semua komponen shadcn */
     prefix: '',
