@@ -321,7 +321,7 @@ const exportCSV = () => {
         </div>
         <div class="p-6 overflow-y-auto">
           <div class="flex flex-col md:flex-row gap-6 mb-6">
-            <div class="w-full md:w-1/2 border-4 border-black bg-gray-100 shadow-neoHover flex items-center justify-center min-h-[200px] relative overflow-hidden cursor-grab active:cursor-grabbing">
+            <div class="viewer-3d w-full md:w-1/2 border-4 border-black bg-gradient-to-br from-gray-100 to-gray-300 shadow-neoHover flex items-center justify-center min-h-[200px] relative overflow-hidden cursor-grab active:cursor-grabbing">
               <model-viewer
                 v-if="selectedUnit.model3d_url"
                 :key="selectedUnit.id"
@@ -329,12 +329,18 @@ const exportCSV = () => {
                 alt="Model 3D unit alat berat"
                 camera-controls
                 auto-rotate
-                shadow-intensity="1"
+                auto-rotate-delay="0"
+                rotation-per-second="35deg"
+                shadow-intensity="1.4"
+                exposure="1.1"
+                environment-image="neutral"
+                interaction-prompt="none"
                 class="w-full h-full min-h-[200px] outline-none"
-                style="background-color:#f3f4f6;"
+                style="background-color:transparent;"
               ></model-viewer>
               <img v-else-if="selectedUnit.img_url" :src="selectedUnit.img_url" class="w-full h-full object-cover" />
               <span v-else class="text-gray-400 font-bold">No Visual</span>
+              <div v-if="selectedUnit.model3d_url" class="absolute top-2 left-2 bg-neoBlue text-white text-[8px] font-black px-2 py-0.5 border-2 border-black pointer-events-none">● LIVE 3D</div>
               <div v-if="selectedUnit.model3d_url" class="absolute bottom-2 right-2 bg-black text-white text-[8px] font-black px-1 pointer-events-none">DRAG 360°</div>
             </div>
             <div class="w-full md:w-1/2 flex flex-col gap-4 justify-center">

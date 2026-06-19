@@ -36,10 +36,16 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+
+  // Global animation layer
+  css: ['~/assets/css/animations.css'],
+
   app: {
     head: {
       title: 'Pratyaksa',
-    }
+    },
+    // Transisi antar halaman
+    pageTransition: { name: 'page', mode: 'out-in' },
   },
 
   // 2. ATUR HOST KE '0.0.0.0' DISINI SETELAH SRCDIR DITEGASKAN

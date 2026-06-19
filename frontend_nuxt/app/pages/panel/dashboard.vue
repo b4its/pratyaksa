@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 
+// Muat web component <model-viewer> untuk render GLB
+useHead({
+  script: [
+    { type: 'module', src: 'https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js' },
+  ],
+})
+
 // ---- Sidebar ----
 const menuItems = [
   { name: 'Dashboard',        path: '/panel/dashboard',         icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"><rect width="7" height="9" x="3" y="3"/><rect width="7" height="5" x="14" y="3"/><rect width="7" height="9" x="14" y="12"/><rect width="7" height="5" x="3" y="16"/></svg>` },
@@ -39,6 +46,33 @@ interface FleetStatusData {
 const monthlyFleetData = ref<FleetStatusData[]>([])
 const mapLocations = ref<any[]>([])
 
+// ---- Armada 3D ----
+interface FleetUnit {
+  id: string; code: string; jenis_alat_berat_nama: string | null
+  status: string; health: number; savings: number
+  maintenance: string; img_url: string | null; model3d_url: string | null
+}
+const units = ref<FleetUnit[]>([])
+const featuredUnit = ref<FleetUnit | null>(null)
+const selectFeatured = (u: FleetUnit) => { featuredUnit.value = u }
+
+const statusHex = (s: string) => ({
+  SEHAT: '#34d399', WARNING: '#facc15', CRITICAL: '#f87171', RUSAK: '#9ca3af',
+}[s] || '#9ca3af')
+const statusBg = (s: string) => ({
+  SEHAT: 'bg-emerald-400', WARNING: 'bg-miningYellow', CRITICAL: 'bg-neoRed text-white', RUSAK: 'bg-gray-400',
+}[s] || 'bg-white')
+
+const loadUnits = async () => {
+  try {
+    const res = await api.getUnitTambang({ per_page: 100 }) as any
+    units.value = res.data.data
+    if (units.value.length > 0) featuredUnit.value = units.value[0]
+  } catch (e) {
+    console.error('Failed to load units', e)
+  }
+}
+
 // ---- Modal bulan ----
 const isMonthDetailModalOpen = ref(false)
 const selectedMonthData = ref<FleetStatusData | null>(null)
@@ -76,7 +110,7 @@ const loadDashboard = async () => {
 
 onMounted(async () => {
   initAuth()
-  await loadDashboard()
+  await Promise.all([loadDashboard(), loadUnits()])
   isLoading.value = false
   await nextTick()
 
@@ -244,19 +278,24 @@ const closeReportModal = () => { isReportModalOpen.value = false }
             </div>
           </template>
           <template v-else>
-            <div class="bg-white border-4 border-black p-6 shadow-neoHover hover:-translate-y-1 hover:shadow-neo transition-all">
+            <div v-tilt class="tilt-card anim-pop d-1 relative overflow-hidden bg-white border-4 border-black p-6 shadow-neoHover">
+              <span class="tilt-shine"></span>
               <p class="text-xs font-black uppercase text-gray-500 mb-2">Total Unit</p>
               <p class="text-5xl font-black">{{ dashboardKPI.totalUnits }}</p>
             </div>
-            <div class="bg-emerald-400 border-4 border-black p-6 shadow-neoHover hover:-translate-y-1 hover:shadow-neo transition-all">
+            <div v-tilt class="tilt-card anim-pop d-2 relative overflow-hidden bg-emerald-400 border-4 border-black p-6 shadow-neoHover">
+              <span class="tilt-shine"></span>
               <p class="text-xs font-black uppercase text-emerald-900 mb-2">Unit Aktif (Sehat)</p>
               <p class="text-5xl font-black text-black">{{ dashboardKPI.activeUnits }}</p>
             </div>
-            <div class="bg-neoRed border-4 border-black p-6 shadow-neoHover hover:-translate-y-1 hover:shadow-neo transition-all text-white">
+            <div v-tilt class="tilt-card anim-pop d-3 relative overflow-hidden bg-neoRed border-4 border-black p-6 shadow-neoHover text-white"
+              :class="dashboardKPI.criticalUnits > 0 ? 'anim-glow' : ''">
+              <span class="tilt-shine"></span>
               <p class="text-xs font-black uppercase text-red-200 mb-2">Kritis / Rusak</p>
               <p class="text-5xl font-black">{{ dashboardKPI.criticalUnits }}</p>
             </div>
-            <div class="bg-black text-white border-4 border-black p-6 shadow-[4px_4px_0px_0px_#FFCC00] hover:-translate-y-1 transition-all">
+            <div v-tilt class="tilt-card anim-pop d-4 relative overflow-hidden bg-black text-white border-4 border-black p-6 shadow-[4px_4px_0px_0px_#FFCC00]">
+              <span class="tilt-shine"></span>
               <p class="text-xs font-black uppercase text-miningYellow mb-2">Total Saving</p>
               <p class="text-4xl font-black mt-2">${{ dashboardKPI.totalSavings.toLocaleString() }}</p>
             </div>
@@ -333,6 +372,104 @@ const closeReportModal = () => { isReportModalOpen.value = false }
                 Lihat Detail Laporan
               </button>
             </template>
+          </div>
+        </div>
+
+        <!-- ============ VISUAL 3D ARMADA ============ -->
+        <div class="bg-white border-4 border-black shadow-neo p-6 mt-8 relative z-0">
+          <div class="flex justify-between items-center mb-6 border-b-4 border-black pb-4 flex-wrap gap-3">
+            <div>
+              <h2 class="text-2xl font-black uppercase">Visual 3D Armada</h2>
+              <p class="text-xs font-bold text-gray-500 mt-1">Klik unit untuk menampilkan model 3D interaktif · drag untuk putar 360°</p>
+            </div>
+            <div class="bg-neoBlue text-white px-3 py-1 border-2 border-black font-black text-xs flex items-center gap-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+              <span class="w-2 h-2 rounded-full bg-white anim-live"></span> {{ units.length }} UNIT 3D
+            </div>
+          </div>
+
+          <template v-if="isLoading">
+            <div class="w-full h-[420px] border-4 border-black bg-gray-200 animate-pulse flex items-center justify-center font-black uppercase tracking-widest text-gray-500">Memuat Model 3D...</div>
+          </template>
+
+          <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Featured big viewer -->
+            <div class="lg:col-span-2">
+              <div v-if="featuredUnit" class="viewer-3d border-4 border-black bg-gradient-to-br from-gray-100 to-gray-300 shadow-neoHover relative overflow-hidden h-[420px] cursor-grab active:cursor-grabbing">
+                <model-viewer
+                  :key="featuredUnit.id"
+                  :src="featuredUnit.model3d_url || 'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb'"
+                  :alt="'Model 3D ' + featuredUnit.code"
+                  camera-controls
+                  auto-rotate
+                  auto-rotate-delay="0"
+                  rotation-per-second="32deg"
+                  shadow-intensity="1.5"
+                  exposure="1.15"
+                  environment-image="neutral"
+                  interaction-prompt="none"
+                  class="w-full h-full outline-none"
+                  style="background-color:transparent;"
+                ></model-viewer>
+                <!-- overlay info -->
+                <div class="absolute top-3 left-3 flex flex-col gap-2 pointer-events-none">
+                  <div class="bg-neoBlue text-white text-[10px] font-black px-2 py-1 border-2 border-black flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-white anim-live"></span> LIVE 3D
+                  </div>
+                  <div class="bg-black text-miningYellow text-sm font-black px-3 py-1 border-2 border-black italic">{{ featuredUnit.code }}</div>
+                </div>
+                <div class="absolute top-3 right-3 px-3 py-1 border-2 border-black font-black text-xs" :style="{ backgroundColor: statusHex(featuredUnit.status) }">{{ featuredUnit.status }}</div>
+                <div class="absolute bottom-0 left-0 right-0 bg-black/80 backdrop-blur text-white p-4 flex justify-between items-end">
+                  <div>
+                    <p class="font-black text-lg uppercase leading-tight">{{ featuredUnit.jenis_alat_berat_nama }}</p>
+                    <p class="text-xs font-bold text-gray-300">{{ featuredUnit.maintenance }}</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase">Health</p>
+                    <p class="text-3xl font-black" :style="{ color: statusHex(featuredUnit.status) }">{{ featuredUnit.health }}%</p>
+                  </div>
+                </div>
+                <div class="absolute bottom-24 right-3 bg-black text-white text-[8px] font-black px-1 pointer-events-none">DRAG 360°</div>
+              </div>
+            </div>
+
+            <!-- Unit selector grid (mini 3D cards) -->
+            <div class="grid grid-cols-2 gap-4 max-h-[420px] overflow-y-auto pr-1">
+              <button
+                v-for="(u, i) in units" :key="u.id"
+                @click="selectFeatured(u)"
+                :class="[
+                  'anim-pop relative overflow-hidden border-4 p-0 text-left transition-all group',
+                  featuredUnit && featuredUnit.id === u.id ? 'border-neoBlue shadow-[4px_4px_0px_0px_#33A8FF]' : 'border-black shadow-neoHover hover:-translate-y-1'
+                ]"
+                :style="{ animationDelay: (i * 0.05) + 's' }"
+              >
+                <div class="viewer-3d h-28 bg-gradient-to-br from-gray-100 to-gray-300 relative overflow-hidden">
+                  <model-viewer
+                    :key="'mini-' + u.id"
+                    :src="u.model3d_url || 'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb'"
+                    :alt="'Model 3D ' + u.code"
+                    auto-rotate
+                    auto-rotate-delay="0"
+                    rotation-per-second="40deg"
+                    disable-zoom
+                    interaction-prompt="none"
+                    shadow-intensity="1"
+                    exposure="1.1"
+                    environment-image="neutral"
+                    class="w-full h-full outline-none pointer-events-none"
+                    style="background-color:transparent;"
+                  ></model-viewer>
+                  <div class="absolute top-1 right-1 w-3 h-3 rounded-full border-2 border-black" :style="{ backgroundColor: statusHex(u.status) }"></div>
+                </div>
+                <div class="p-2 bg-white border-t-4 border-black">
+                  <p class="font-black text-xs italic truncate">{{ u.code }}</p>
+                  <div class="flex items-center justify-between mt-1">
+                    <span class="text-[9px] font-bold text-gray-500 truncate">HP {{ u.health }}%</span>
+                    <span class="text-[8px] font-black px-1 border border-black" :style="{ backgroundColor: statusHex(u.status) }">{{ u.status }}</span>
+                  </div>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
 

@@ -373,8 +373,8 @@ const statusLabelColor = (s: string) => ({
         <div class="flex items-center gap-3">
           <button @click="autoRefresh = !autoRefresh"
             :class="autoRefresh ? 'bg-emerald-400' : 'bg-white'"
-            class="p-3 border-4 border-black font-black text-xs shadow-neoHover flex items-center gap-2 hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all">
-            <span class="w-3 h-3 rounded-full border-2 border-black" :class="autoRefresh ? 'bg-black animate-pulse' : 'bg-gray-300'"></span>
+            class="p-3 border-4 border-black font-black text-xs shadow-neoHover flex items-center gap-2 lift">
+            <span class="w-3 h-3 rounded-full border-2 border-black" :class="autoRefresh ? 'bg-black anim-live' : 'bg-gray-300'"></span>
             {{ autoRefresh ? 'LIVE' : 'PAUSED' }}
           </button>
           <div class="p-2 border-4 border-black bg-white text-[10px] font-bold shadow-neoHover">
@@ -390,19 +390,24 @@ const statusLabelColor = (s: string) => ({
       <template v-else-if="overview">
         <!-- KPI Cards -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div class="bg-white border-4 border-black p-5 shadow-neoHover">
+          <div v-tilt class="tilt-card anim-pop d-1 relative overflow-hidden bg-white border-4 border-black p-5 shadow-neoHover">
+            <span class="tilt-shine"></span>
             <p class="text-[10px] font-black uppercase text-gray-500 mb-1">Total Unit</p>
             <p class="text-4xl font-black">{{ overview.total_units }}</p>
           </div>
-          <div class="bg-emerald-400 border-4 border-black p-5 shadow-neoHover">
+          <div v-tilt class="tilt-card anim-pop d-2 relative overflow-hidden bg-emerald-400 border-4 border-black p-5 shadow-neoHover">
+            <span class="tilt-shine"></span>
             <p class="text-[10px] font-black uppercase text-emerald-900 mb-1">Rata-rata Health</p>
             <p class="text-4xl font-black">{{ overview.avg_health }}%</p>
           </div>
-          <div class="bg-miningYellow border-4 border-black p-5 shadow-neoHover">
+          <div v-tilt class="tilt-card anim-pop d-3 relative overflow-hidden bg-miningYellow border-4 border-black p-5 shadow-neoHover">
+            <span class="tilt-shine"></span>
             <p class="text-[10px] font-black uppercase mb-1">Rata-rata Risk</p>
             <p class="text-4xl font-black">{{ overview.avg_risk_score }}</p>
           </div>
-          <div class="bg-neoRed text-white border-4 border-black p-5 shadow-neoHover">
+          <div v-tilt class="tilt-card anim-pop d-4 relative overflow-hidden bg-neoRed text-white border-4 border-black p-5 shadow-neoHover"
+            :class="overview.units_at_risk > 0 ? 'anim-glow' : ''">
+            <span class="tilt-shine"></span>
             <p class="text-[10px] font-black uppercase text-red-200 mb-1">Unit Berisiko</p>
             <p class="text-4xl font-black">{{ overview.units_at_risk }}</p>
           </div>
@@ -410,11 +415,11 @@ const statusLabelColor = (s: string) => ({
 
         <!-- Fleet charts -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div class="bg-white border-4 border-black shadow-neo p-6">
+          <div class="bg-white border-4 border-black shadow-neo p-6 anim-up d-2">
             <h2 class="text-xl font-black uppercase mb-4 border-b-4 border-black pb-2">Distribusi Status Armada</h2>
             <div class="h-64"><canvas id="statusPie"></canvas></div>
           </div>
-          <div class="bg-white border-4 border-black shadow-neo p-6">
+          <div class="bg-white border-4 border-black shadow-neo p-6 anim-up d-3">
             <h2 class="text-xl font-black uppercase mb-4 border-b-4 border-black pb-2">Distribusi Tingkat Risiko</h2>
             <div class="h-64"><canvas id="riskBar"></canvas></div>
           </div>
@@ -463,9 +468,9 @@ const statusLabelColor = (s: string) => ({
             <!-- Gauge + Radar -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
               <!-- 3D Model Viewer (GLB) -->
-              <div class="bg-white border-4 border-black shadow-neo p-6">
+              <div class="bg-white border-4 border-black shadow-neo p-6 anim-up d-1">
                 <h3 class="text-lg font-black uppercase mb-2 border-b-4 border-black pb-2">Visual 3D Unit</h3>
-                <div class="border-4 border-black bg-gray-100 shadow-neoHover relative cursor-grab active:cursor-grabbing overflow-hidden h-48">
+                <div class="viewer-3d border-4 border-black bg-gradient-to-br from-gray-100 to-gray-300 shadow-neoHover relative cursor-grab active:cursor-grabbing overflow-hidden h-48">
                   <model-viewer
                     v-if="analysis.unit.model3d_url"
                     :key="analysis.unit.id"
@@ -473,11 +478,17 @@ const statusLabelColor = (s: string) => ({
                     alt="Model 3D unit alat berat"
                     camera-controls
                     auto-rotate
-                    shadow-intensity="1"
+                    auto-rotate-delay="0"
+                    rotation-per-second="35deg"
+                    shadow-intensity="1.4"
+                    exposure="1.1"
+                    environment-image="neutral"
+                    interaction-prompt="none"
                     class="w-full h-full outline-none"
-                    style="background-color:#f3f4f6;"
+                    style="background-color:transparent;"
                   ></model-viewer>
                   <div v-else class="w-full h-full flex items-center justify-center text-gray-400 font-bold text-sm">Model 3D tidak tersedia</div>
+                  <div class="absolute top-2 left-2 bg-neoBlue text-white text-[8px] font-black px-2 py-0.5 border-2 border-black pointer-events-none">● LIVE 3D</div>
                   <div class="absolute bottom-2 right-2 bg-black text-white text-[8px] font-black px-1 pointer-events-none">DRAG 360°</div>
                 </div>
               </div>
