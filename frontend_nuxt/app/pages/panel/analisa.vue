@@ -11,11 +11,11 @@ useHead({
 // --- SIDEBAR ---
 interface MenuItem { name: string; path: string; icon: string }
 const menuItems = ref<MenuItem[]>([
-  { name: 'Dashboard', path: '/panel/dashboard', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><rect width="7" height="9" x="3" y="3"/><rect width="7" height="5" x="14" y="3"/><rect width="7" height="9" x="14" y="12"/><rect width="7" height="5" x="3" y="16"/></svg>` },
-  { name: 'Jenis Alat Berat', path: '/panel/jenis_alat_berat', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-9l-2.5-3.5H14v12h3"/><path d="M14 6h4.5"/><circle cx="18.5" cy="17.5" r="2.5"/><circle cx="5.5" cy="17.5" r="2.5"/></svg>` },
-  { name: 'Unit Tambang', path: '/panel/unit_tambang', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>` },
-  { name: 'Analisa Kerusakan', path: '/panel/analisa', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>` },
-  { name: 'Kembali', path: '../', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>` },
+  { name: 'Dashboard', path: '/panel/dashboard', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>` },
+  { name: 'Jenis Alat Berat', path: '/panel/jenis_alat_berat', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-9l-2.5-3.5H14v12h3"/><path d="M14 6h4.5"/><circle cx="18.5" cy="17.5" r="2.5"/><circle cx="5.5" cy="17.5" r="2.5"/></svg>` },
+  { name: 'Unit Tambang', path: '/panel/unit_tambang', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>` },
+  { name: 'Analisa Kerusakan', path: '/panel/analisa', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>` },
+  { name: 'Kembali', path: '../', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>` },
 ])
 const activeMenu = ref('Analisa Kerusakan')
 
@@ -68,6 +68,7 @@ const errorMsg = ref('')
 const autoRefresh = ref(true)
 const lastUpdate = ref('')
 
+const { initAuth, user } = useAuth()
 const api = useApi()
 let ChartLib: any = null
 let refreshTimer: any = null
@@ -77,11 +78,11 @@ const charts: Record<string, any> = {}
 
 // --- HELPERS ---
 const riskColor = (level: string) => ({
-  LOW: '#34d399', MEDIUM: '#facc15', HIGH: '#fb923c', CRITICAL: '#f87171',
-}[level] || '#9ca3af')
+  LOW: '#1FA971', MEDIUM: '#E0A106', HIGH: '#E0843E', CRITICAL: '#E0413E',
+}[level] || '#7A848E')
 const statusColor = (s: string) => ({
-  SEHAT: '#34d399', WARNING: '#facc15', CRITICAL: '#f87171', RUSAK: '#9ca3af',
-}[s] || '#9ca3af')
+  SEHAT: '#1FA971', WARNING: '#E0A106', CRITICAL: '#E0413E', RUSAK: '#7A848E',
+}[s] || '#7A848E')
 
 const selectedUnit = computed(() =>
   overview.value?.units.find(u => u.id === selectedUnitId.value) || null)
@@ -125,6 +126,15 @@ const selectUnit = async (id: string) => {
 }
 
 // --- CHART RENDERING ---
+const css = (v: string) => (typeof window !== 'undefined' ? getComputedStyle(document.documentElement).getPropertyValue(v).trim() : '')
+const theme = () => ({
+  tick: css('--text-muted') || '#5d6b7a',
+  grid: css('--border') || '#d7dde4',
+  axis: css('--border-strong') || '#c2cad3',
+  surface: css('--surface') || '#ffffff',
+  text: css('--text') || '#1b2128',
+})
+
 const upsertChart = (key: string, canvasId: string, config: any) => {
   const el = document.getElementById(canvasId) as HTMLCanvasElement | null
   if (!el || !ChartLib) return
@@ -137,10 +147,12 @@ const upsertChart = (key: string, canvasId: string, config: any) => {
   }
 }
 
-const neoFont = { family: 'Space Mono', weight: 'bold' as const }
+const labelFont = { family: 'Inter', weight: 'bold' as const }
+const monoFont = { family: 'JetBrains Mono' }
 
 const renderOverviewCharts = () => {
   if (!overview.value) return
+  const t = theme()
 
   // Status pie (doughnut)
   const sd = overview.value.status_distribution
@@ -151,12 +163,12 @@ const renderOverviewCharts = () => {
       datasets: [{
         data: sd.map(s => s.count),
         backgroundColor: sd.map(s => statusColor(s.label)),
-        borderColor: '#000', borderWidth: 3,
+        borderColor: t.surface, borderWidth: 3,
       }],
     },
     options: {
-      responsive: true, maintainAspectRatio: false, cutout: '55%',
-      plugins: { legend: { position: 'bottom', labels: { font: neoFont, boxWidth: 14 } } },
+      responsive: true, maintainAspectRatio: false, cutout: '60%',
+      plugins: { legend: { position: 'bottom', labels: { font: labelFont, color: t.tick, boxWidth: 12, usePointStyle: true } } },
     },
   })
 
@@ -169,15 +181,15 @@ const renderOverviewCharts = () => {
       datasets: [{
         data: rd.map(r => r.count),
         backgroundColor: rd.map(r => riskColor(r.label)),
-        borderColor: '#000', borderWidth: 3,
+        borderRadius: 6, borderSkipped: false,
       }],
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { font: neoFont, color: '#000' }, grid: { display: false }, border: { color: '#000', width: 3 } },
-        y: { beginAtZero: true, ticks: { font: neoFont, color: '#000', stepSize: 1 }, grid: { color: '#E5E7EB' }, border: { color: '#000', width: 3 } },
+        x: { ticks: { font: labelFont, color: t.tick }, grid: { display: false }, border: { color: t.axis } },
+        y: { beginAtZero: true, ticks: { font: monoFont, color: t.tick, stepSize: 1 }, grid: { color: t.grid }, border: { color: t.axis } },
       },
     },
   })
@@ -185,6 +197,7 @@ const renderOverviewCharts = () => {
 
 const renderUnitCharts = () => {
   if (!analysis.value) return
+  const t = theme()
 
   // Risk gauge (doughnut as gauge)
   const rs = analysis.value.risk_score
@@ -194,12 +207,12 @@ const renderUnitCharts = () => {
       labels: ['Risk', 'Sisa'],
       datasets: [{
         data: [rs, 100 - rs],
-        backgroundColor: [riskColor(analysis.value.risk_level), '#e5e7eb'],
-        borderColor: '#000', borderWidth: 3, circumference: 180, rotation: 270,
+        backgroundColor: [riskColor(analysis.value.risk_level), t.grid],
+        borderColor: t.surface, borderWidth: 2, circumference: 180, rotation: 270,
       }],
     },
     options: {
-      responsive: true, maintainAspectRatio: false, cutout: '70%',
+      responsive: true, maintainAspectRatio: false, cutout: '72%',
       plugins: { legend: { display: false }, tooltip: { enabled: false } },
     },
   })
@@ -213,9 +226,9 @@ const renderUnitCharts = () => {
       datasets: [{
         label: 'Health Score',
         data: ch.map(c => c.health),
-        backgroundColor: 'rgba(51,168,255,0.25)',
-        borderColor: '#33A8FF', borderWidth: 3,
-        pointBackgroundColor: '#000', pointBorderColor: '#000', pointRadius: 4,
+        backgroundColor: 'rgba(62,146,204,0.18)',
+        borderColor: '#3E92CC', borderWidth: 2.5,
+        pointBackgroundColor: '#3E92CC', pointBorderColor: t.surface, pointRadius: 4,
       }],
     },
     options: {
@@ -224,9 +237,9 @@ const renderUnitCharts = () => {
       scales: {
         r: {
           min: 0, max: 100,
-          ticks: { stepSize: 25, font: { family: 'Space Mono', size: 9 }, color: '#666', backdropColor: 'transparent' },
-          grid: { color: '#d1d5db' }, angleLines: { color: '#d1d5db' },
-          pointLabels: { font: neoFont, color: '#000' },
+          ticks: { stepSize: 25, font: { family: 'JetBrains Mono', size: 9 }, color: t.tick, backdropColor: 'transparent' },
+          grid: { color: t.grid }, angleLines: { color: t.grid },
+          pointLabels: { font: labelFont, color: t.text },
         },
       },
     },
@@ -239,19 +252,19 @@ const renderUnitCharts = () => {
     data: {
       labels: hist.map(h => h.time),
       datasets: [
-        { label: 'Suhu (°C)', data: hist.map(h => h.suhu_mesin), borderColor: '#f87171', backgroundColor: '#f87171', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'y' },
-        { label: 'Akustik (dB)', data: hist.map(h => h.acoustic), borderColor: '#fb923c', backgroundColor: '#fb923c', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'y' },
-        { label: 'Vibrasi (g)', data: hist.map(h => h.vibration), borderColor: '#33A8FF', backgroundColor: '#33A8FF', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'y1' },
-        { label: 'Tekanan Oli (bar)', data: hist.map(h => h.tekanan_oli), borderColor: '#34d399', backgroundColor: '#34d399', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'y1' },
+        { label: 'Suhu (°C)', data: hist.map(h => h.suhu_mesin), borderColor: '#E0413E', backgroundColor: '#E0413E', borderWidth: 2, pointRadius: 0, tension: 0.35, yAxisID: 'y' },
+        { label: 'Akustik (dB)', data: hist.map(h => h.acoustic), borderColor: '#E0843E', backgroundColor: '#E0843E', borderWidth: 2, pointRadius: 0, tension: 0.35, yAxisID: 'y' },
+        { label: 'Vibrasi (g)', data: hist.map(h => h.vibration), borderColor: '#3E92CC', backgroundColor: '#3E92CC', borderWidth: 2, pointRadius: 0, tension: 0.35, yAxisID: 'y1' },
+        { label: 'Tekanan Oli (bar)', data: hist.map(h => h.tekanan_oli), borderColor: '#1FA971', backgroundColor: '#1FA971', borderWidth: 2, pointRadius: 0, tension: 0.35, yAxisID: 'y1' },
       ],
     },
     options: {
       responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { position: 'bottom', labels: { font: { family: 'Space Mono', size: 10, weight: 'bold' }, boxWidth: 12 } } },
+      plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 10, weight: 'bold' }, color: t.tick, boxWidth: 12, usePointStyle: true } } },
       scales: {
-        x: { ticks: { font: { family: 'Space Mono', size: 9 }, color: '#000', maxTicksLimit: 8 }, grid: { display: false }, border: { color: '#000', width: 3 } },
-        y: { position: 'left', ticks: { font: { family: 'Space Mono', size: 9 }, color: '#000' }, grid: { color: '#E5E7EB' }, border: { color: '#000', width: 3 } },
-        y1: { position: 'right', ticks: { font: { family: 'Space Mono', size: 9 }, color: '#000' }, grid: { display: false }, border: { color: '#000', width: 3 } },
+        x: { ticks: { font: { family: 'JetBrains Mono', size: 9 }, color: t.tick, maxTicksLimit: 8 }, grid: { display: false }, border: { color: t.axis } },
+        y: { position: 'left', ticks: { font: { family: 'JetBrains Mono', size: 9 }, color: t.tick }, grid: { color: t.grid }, border: { color: t.axis } },
+        y1: { position: 'right', ticks: { font: { family: 'JetBrains Mono', size: 9 }, color: t.tick }, grid: { display: false }, border: { color: t.axis } },
       },
     },
   })
@@ -264,16 +277,16 @@ const renderUnitCharts = () => {
       labels: shap.map(s => s.feature),
       datasets: [{
         data: shap.map(s => s.value),
-        backgroundColor: shap.map(s => s.value >= 0 ? '#f87171' : '#34d399'),
-        borderColor: '#000', borderWidth: 2,
+        backgroundColor: shap.map(s => s.value >= 0 ? '#E0413E' : '#1FA971'),
+        borderRadius: 5, borderSkipped: false,
       }],
     },
     options: {
       indexAxis: 'y', responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c: any) => `${c.raw >= 0 ? '+' : ''}${c.raw} ke risiko` } } },
       scales: {
-        x: { ticks: { font: { family: 'Space Mono', size: 9 }, color: '#000' }, grid: { color: '#E5E7EB' }, border: { color: '#000', width: 3 } },
-        y: { ticks: { font: { family: 'Space Mono', size: 10, weight: 'bold' }, color: '#000' }, grid: { display: false }, border: { color: '#000', width: 3 } },
+        x: { ticks: { font: { family: 'JetBrains Mono', size: 9 }, color: t.tick }, grid: { color: t.grid }, border: { color: t.axis } },
+        y: { ticks: { font: { family: 'Inter', size: 10, weight: 'bold' }, color: t.text }, grid: { display: false }, border: { color: t.axis } },
       },
     },
   })
@@ -287,16 +300,16 @@ const renderUnitCharts = () => {
       datasets: [{
         label: 'ppm',
         data: [tm.lab_fe_ppm, tm.lab_cu_ppm, tm.lab_al_ppm, tm.lab_si_ppm],
-        backgroundColor: ['#f87171', '#fb923c', '#33A8FF', '#a78bfa'],
-        borderColor: '#000', borderWidth: 3,
+        backgroundColor: ['#E0413E', '#E0843E', '#3E92CC', '#9B7BE0'],
+        borderRadius: 5, borderSkipped: false,
       }],
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { font: { family: 'Space Mono', size: 9, weight: 'bold' }, color: '#000' }, grid: { display: false }, border: { color: '#000', width: 3 } },
-        y: { beginAtZero: true, ticks: { font: { family: 'Space Mono', size: 9 }, color: '#000' }, grid: { color: '#E5E7EB' }, border: { color: '#000', width: 3 } },
+        x: { ticks: { font: { family: 'Inter', size: 9, weight: 'bold' }, color: t.tick }, grid: { display: false }, border: { color: t.axis } },
+        y: { beginAtZero: true, ticks: { font: { family: 'JetBrains Mono', size: 9 }, color: t.tick }, grid: { color: t.grid }, border: { color: t.axis } },
       },
     },
   })
@@ -306,8 +319,7 @@ const renderAllCharts = () => { renderOverviewCharts(); renderUnitCharts() }
 
 // --- LIFECYCLE ---
 onMounted(async () => {
-  const auth = useAuth()
-  auth.initAuth()
+  initAuth()
   isLoading.value = true
   if (typeof window !== 'undefined') {
     const mod = await import('chart.js/auto')
@@ -335,31 +347,38 @@ const fmtHours = (h: number) => {
 }
 
 const statusLabelColor = (s: string) => ({
-  NORMAL: '#34d399', WARNING: '#facc15', CRITICAL: '#f87171',
-}[s] || '#9ca3af')
+  NORMAL: '#1FA971', WARNING: '#E0A106', CRITICAL: '#E0413E',
+}[s] || '#7A848E')
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-[#F1F1F1] font-mono text-black">
+  <div class="flex min-h-screen bg-mesh text-[color:var(--text)]">
     <!-- Sidebar -->
-    <aside class="w-72 border-r-4 border-black bg-white p-6 flex flex-col justify-between z-10 shrink-0">
+    <aside class="w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)] p-5 flex flex-col justify-between z-10 shrink-0">
       <div>
-        <div class="mb-10 flex justify-center">
-          <div class="bg-miningYellow border-4 border-black p-4 shadow-neo w-24 h-24 flex items-center justify-center rounded-xl">
-            <span class="text-5xl font-black italic">V</span>
+        <div class="flex items-center gap-3 mb-9 px-1">
+          <div class="w-11 h-11 rounded-xl bg-amber-gradient flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(242,166,12,0.7)]">
+            <svg class="w-6 h-6 text-graphite-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>
+          </div>
+          <div>
+            <p class="font-display text-xl font-bold tracking-wide leading-none">PRAT<span class="text-amber">YAKSA</span></p>
+            <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-faint)] mt-1">Control Panel</p>
           </div>
         </div>
-        <nav class="space-y-4">
+        <nav class="space-y-1.5">
           <NuxtLink v-for="item in menuItems" :key="item.name" :to="item.path" @click="activeMenu = item.name"
-            :class="['w-full flex items-center gap-3 p-3 border-2 font-bold transition-all cursor-pointer', activeMenu === item.name ? 'border-black bg-miningYellow shadow-neoHover' : 'border-transparent hover:border-black hover:bg-white hover:shadow-neoHover']">
-            <div v-if="activeMenu === item.name" class="p-1 border-2 border-black bg-white shrink-0"><div class="w-2.5 h-2.5 bg-black"></div></div>
-            <div v-else class="w-2.5 h-2.5 border-2 border-black ml-1.5 shrink-0"></div>
-            <div class="flex items-center gap-3 w-full">
-              <div class="flex items-center justify-center shrink-0" v-html="item.icon"></div>
-              <span class="truncate">{{ item.name }}</span>
-            </div>
+            :class="['nav-link', activeMenu === item.name ? 'nav-link-active' : '']">
+            <span class="flex items-center justify-center shrink-0" v-html="item.icon"></span>
+            <span class="truncate">{{ item.name }}</span>
           </NuxtLink>
         </nav>
+      </div>
+      <div class="panel-flat p-4">
+        <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)]">Logged in as</p>
+        <div class="flex items-center gap-3 mt-2">
+          <div class="w-9 h-9 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-sm">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
+          <p class="font-semibold text-sm truncate">{{ user?.name || 'Admin' }}</p>
+        </div>
       </div>
     </aside>
 
@@ -367,60 +386,60 @@ const statusLabelColor = (s: string) => ({
     <main class="flex-1 p-8 overflow-y-auto">
       <header class="flex justify-between items-start mb-8 flex-wrap gap-4">
         <div>
-          <h1 class="text-5xl md:text-6xl font-black uppercase tracking-tighter leading-none">Analisa Kerusakan</h1>
-          <p class="mt-2 font-bold text-gray-600 bg-white border-b-2 border-black inline-block">Monitoring kondisi & prediksi kegagalan armada secara real-time.</p>
+          <h1 class="font-display text-4xl md:text-5xl font-bold uppercase tracking-wide leading-none">Analisa Kerusakan</h1>
+          <p class="mt-2 text-[color:var(--text-muted)]">Monitoring kondisi & prediksi kegagalan armada secara real-time.</p>
         </div>
         <div class="flex items-center gap-3">
           <button @click="autoRefresh = !autoRefresh"
-            :class="autoRefresh ? 'bg-emerald-400' : 'bg-white'"
-            class="p-3 border-4 border-black font-black text-xs shadow-neoHover flex items-center gap-2 lift">
-            <span class="w-3 h-3 rounded-full border-2 border-black" :class="autoRefresh ? 'bg-black anim-live' : 'bg-gray-300'"></span>
+            :class="autoRefresh ? 'border-healthy/50 text-healthy bg-healthy/10' : 'btn-ghost'"
+            class="btn !py-2.5 text-xs">
+            <span class="w-2.5 h-2.5 rounded-full" :class="autoRefresh ? 'bg-healthy anim-live' : 'bg-[color:var(--text-faint)]'"></span>
             {{ autoRefresh ? 'LIVE' : 'PAUSED' }}
           </button>
-          <div class="p-2 border-4 border-black bg-white text-[10px] font-bold shadow-neoHover">
-            Update:<br>{{ lastUpdate || '—' }}
+          <div class="panel-flat px-3 py-2 text-[10px] font-mono text-[color:var(--text-muted)]">
+            Update<br><span class="font-semibold text-[color:var(--text)]">{{ lastUpdate || '—' }}</span>
           </div>
         </div>
       </header>
 
-      <div v-if="errorMsg" class="mb-6 p-4 bg-neoRed text-white border-4 border-black font-bold shadow-neo">⚠️ {{ errorMsg }}</div>
+      <div v-if="errorMsg" class="mb-6 px-4 py-3 rounded-xl bg-critical/10 border border-critical/40 text-critical font-semibold">⚠️ {{ errorMsg }}</div>
 
-      <div v-if="isLoading" class="flex items-center justify-center h-96 font-black text-gray-400 uppercase tracking-widest">Memuat analitik...</div>
+      <div v-if="isLoading" class="flex items-center justify-center h-96 font-semibold text-[color:var(--text-faint)] uppercase tracking-widest">Memuat analitik…</div>
 
       <template v-else-if="overview">
         <!-- KPI Cards -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div v-tilt class="tilt-card anim-pop d-1 relative overflow-hidden bg-white border-4 border-black p-5 shadow-neoHover">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+          <div v-tilt class="tilt-card kpi anim-pop d-1 p-5" style="--accent:#3E92CC">
             <span class="tilt-shine"></span>
-            <p class="text-[10px] font-black uppercase text-gray-500 mb-1">Total Unit</p>
-            <p class="text-4xl font-black">{{ overview.total_units }}</p>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-muted)] mb-1">Total Unit</p>
+            <p class="font-display text-4xl font-bold">{{ overview.total_units }}</p>
           </div>
-          <div v-tilt class="tilt-card anim-pop d-2 relative overflow-hidden bg-emerald-400 border-4 border-black p-5 shadow-neoHover">
+          <div v-tilt class="tilt-card kpi anim-pop d-2 p-5" style="--accent:#1FA971">
             <span class="tilt-shine"></span>
-            <p class="text-[10px] font-black uppercase text-emerald-900 mb-1">Rata-rata Health</p>
-            <p class="text-4xl font-black">{{ overview.avg_health }}%</p>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-muted)] mb-1">Rata-rata Health</p>
+            <p class="font-display text-4xl font-bold text-healthy">{{ overview.avg_health }}%</p>
           </div>
-          <div v-tilt class="tilt-card anim-pop d-3 relative overflow-hidden bg-miningYellow border-4 border-black p-5 shadow-neoHover">
+          <div v-tilt class="tilt-card kpi anim-pop d-3 p-5" style="--accent:#E0A106">
             <span class="tilt-shine"></span>
-            <p class="text-[10px] font-black uppercase mb-1">Rata-rata Risk</p>
-            <p class="text-4xl font-black">{{ overview.avg_risk_score }}</p>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-muted)] mb-1">Rata-rata Risk</p>
+            <p class="font-display text-4xl font-bold text-warning">{{ overview.avg_risk_score }}</p>
           </div>
-          <div v-tilt class="tilt-card anim-pop d-4 relative overflow-hidden bg-neoRed text-white border-4 border-black p-5 shadow-neoHover"
+          <div v-tilt class="tilt-card kpi anim-pop d-4 p-5" style="--accent:#E0413E"
             :class="overview.units_at_risk > 0 ? 'anim-glow' : ''">
             <span class="tilt-shine"></span>
-            <p class="text-[10px] font-black uppercase text-red-200 mb-1">Unit Berisiko</p>
-            <p class="text-4xl font-black">{{ overview.units_at_risk }}</p>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-muted)] mb-1">Unit Berisiko</p>
+            <p class="font-display text-4xl font-bold text-critical">{{ overview.units_at_risk }}</p>
           </div>
         </div>
 
         <!-- Fleet charts -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div class="bg-white border-4 border-black shadow-neo p-6 anim-up d-2">
-            <h2 class="text-xl font-black uppercase mb-4 border-b-4 border-black pb-2">Distribusi Status Armada</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-7">
+          <div class="panel p-6 anim-up d-2">
+            <h2 class="font-display text-xl font-bold uppercase tracking-wide mb-4 pb-2 border-b border-[color:var(--border)]">Distribusi Status Armada</h2>
             <div class="h-64"><canvas id="statusPie"></canvas></div>
           </div>
-          <div class="bg-white border-4 border-black shadow-neo p-6 anim-up d-3">
-            <h2 class="text-xl font-black uppercase mb-4 border-b-4 border-black pb-2">Distribusi Tingkat Risiko</h2>
+          <div class="panel p-6 anim-up d-3">
+            <h2 class="font-display text-xl font-bold uppercase tracking-wide mb-4 pb-2 border-b border-[color:var(--border)]">Distribusi Tingkat Risiko</h2>
             <div class="h-64"><canvas id="riskBar"></canvas></div>
           </div>
         </div>
@@ -428,19 +447,19 @@ const statusLabelColor = (s: string) => ({
         <!-- Unit list + detail -->
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <!-- Unit list -->
-          <div class="lg:col-span-1 bg-white border-4 border-black shadow-neo p-4 h-fit">
-            <h2 class="text-lg font-black uppercase mb-4 border-b-4 border-black pb-2">Pilih Unit</h2>
-            <div class="space-y-2 max-h-[600px] overflow-y-auto">
+          <div class="lg:col-span-1 panel p-4 h-fit">
+            <h2 class="font-display text-lg font-bold uppercase tracking-wide mb-4 pb-2 border-b border-[color:var(--border)]">Pilih Unit</h2>
+            <div class="space-y-2 max-h-[600px] overflow-y-auto pr-1">
               <button v-for="u in overview.units" :key="u.id" @click="selectUnit(u.id)"
-                :class="selectedUnitId === u.id ? 'bg-miningYellow border-black shadow-neoHover' : 'bg-white border-gray-300 hover:border-black'"
-                class="w-full text-left p-3 border-2 transition-all">
+                :class="selectedUnitId === u.id ? 'border-amber bg-amber/10' : 'border-[color:var(--border)] hover:border-steel hover:bg-[color:var(--surface-2)]'"
+                class="w-full text-left p-3 rounded-lg border transition-all">
                 <div class="flex justify-between items-center">
-                  <span class="font-black italic text-sm">{{ u.code }}</span>
-                  <span class="px-2 py-0.5 border-2 border-black text-[9px] font-black text-white" :style="{ backgroundColor: riskColor(u.risk_level) }">{{ u.risk_level }}</span>
+                  <span class="font-mono font-semibold text-sm">{{ u.code }}</span>
+                  <span class="px-2 py-0.5 rounded-full text-[9px] font-bold text-white" :style="{ backgroundColor: riskColor(u.risk_level) }">{{ u.risk_level }}</span>
                 </div>
-                <div class="flex justify-between items-center mt-1">
-                  <span class="text-[10px] font-bold text-gray-600 truncate">{{ u.jenis_alat_berat_nama }}</span>
-                  <span class="text-[10px] font-black">Risk {{ u.risk_score }}</span>
+                <div class="flex justify-between items-center mt-1.5">
+                  <span class="text-[11px] text-[color:var(--text-muted)] truncate">{{ u.jenis_alat_berat_nama }}</span>
+                  <span class="text-[11px] font-mono font-semibold">Risk {{ u.risk_score }}</span>
                 </div>
               </button>
             </div>
@@ -449,69 +468,61 @@ const statusLabelColor = (s: string) => ({
           <!-- Detail -->
           <div v-if="analysis" class="lg:col-span-3 space-y-6">
             <!-- Header unit -->
-            <div class="bg-black text-white border-4 border-black shadow-neo p-5 flex justify-between items-center flex-wrap gap-3">
+            <div class="rounded-xl bg-steel-gradient text-white p-5 flex justify-between items-center flex-wrap gap-3">
               <div>
-                <p class="text-miningYellow font-black text-xs">{{ analysis.unit.code }}</p>
-                <p class="font-black text-xl uppercase">{{ analysis.unit.jenis_alat_berat_nama }}</p>
+                <p class="text-amber font-mono font-semibold text-xs">{{ analysis.unit.code }}</p>
+                <p class="font-display font-bold text-xl uppercase tracking-wide">{{ analysis.unit.jenis_alat_berat_nama }}</p>
               </div>
-              <div class="flex gap-3 items-center">
+              <div class="flex gap-4 items-center">
                 <div class="text-center">
-                  <p class="text-[9px] font-bold text-gray-400 uppercase">Health</p>
-                  <p class="text-2xl font-black">{{ analysis.unit.health }}%</p>
+                  <p class="text-[9px] text-graphite-300 uppercase tracking-wider">Health</p>
+                  <p class="text-2xl font-display font-bold">{{ analysis.unit.health }}%</p>
                 </div>
-                <div class="px-3 py-2 border-2 text-black font-black text-sm" :style="{ backgroundColor: riskColor(analysis.risk_level) }">
+                <div class="px-3 py-2 rounded-lg text-white font-bold text-sm" :style="{ backgroundColor: riskColor(analysis.risk_level) }">
                   {{ analysis.risk_level }}
                 </div>
               </div>
             </div>
 
-            <!-- Gauge + Radar -->
+            <!-- 3D + Gauge + Radar -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <!-- 3D Model Viewer (GLB) -->
-              <div class="bg-white border-4 border-black shadow-neo p-6 anim-up d-1">
-                <h3 class="text-lg font-black uppercase mb-2 border-b-4 border-black pb-2">Visual 3D Unit</h3>
-                <div class="viewer-3d border-4 border-black bg-gradient-to-br from-gray-100 to-gray-300 shadow-neoHover relative cursor-grab active:cursor-grabbing overflow-hidden h-48">
+              <div class="panel p-6 anim-up d-1">
+                <h3 class="font-display text-lg font-bold uppercase tracking-wide mb-3 pb-2 border-b border-[color:var(--border)]">Visual 3D Unit</h3>
+                <div class="viewer-3d rounded-xl border border-[color:var(--border)] bg-steel-gradient relative cursor-grab active:cursor-grabbing overflow-hidden h-48">
                   <model-viewer
                     v-if="analysis.unit.model3d_url"
                     :key="analysis.unit.id"
                     :src="analysis.unit.model3d_url"
                     alt="Model 3D unit alat berat"
-                    camera-controls
-                    auto-rotate
-                    auto-rotate-delay="0"
-                    rotation-per-second="35deg"
-                    shadow-intensity="1.4"
-                    exposure="1.1"
-                    environment-image="neutral"
-                    interaction-prompt="none"
-                    class="w-full h-full outline-none"
-                    style="background-color:transparent;"
+                    camera-controls auto-rotate auto-rotate-delay="0" rotation-per-second="35deg"
+                    shadow-intensity="1.4" exposure="1.1" environment-image="neutral" interaction-prompt="none"
+                    class="w-full h-full outline-none" style="background-color:transparent;"
                   ></model-viewer>
-                  <div v-else class="w-full h-full flex items-center justify-center text-gray-400 font-bold text-sm">Model 3D tidak tersedia</div>
-                  <div class="absolute top-2 left-2 bg-neoBlue text-white text-[8px] font-black px-2 py-0.5 border-2 border-black pointer-events-none">● LIVE 3D</div>
-                  <div class="absolute bottom-2 right-2 bg-black text-white text-[8px] font-black px-1 pointer-events-none">DRAG 360°</div>
+                  <div v-else class="w-full h-full flex items-center justify-center text-graphite-300 font-medium text-sm">Model 3D tidak tersedia</div>
+                  <div class="absolute top-2 left-2 bg-steel/90 text-white text-[8px] font-semibold px-2 py-0.5 rounded-full pointer-events-none">● LIVE 3D</div>
+                  <div class="absolute bottom-2 right-2 bg-graphite-900/80 text-graphite-100 text-[8px] font-medium px-2 py-0.5 rounded-full pointer-events-none">DRAG 360°</div>
                 </div>
               </div>
 
-              <div class="bg-white border-4 border-black shadow-neo p-6">
-                <h3 class="text-lg font-black uppercase mb-2 border-b-4 border-black pb-2">Risk Score</h3>
+              <div class="panel p-6">
+                <h3 class="font-display text-lg font-bold uppercase tracking-wide mb-3 pb-2 border-b border-[color:var(--border)]">Risk Score</h3>
                 <div class="h-48 relative">
                   <canvas id="riskGauge"></canvas>
                   <div class="absolute inset-0 flex flex-col items-center justify-end pb-2 pointer-events-none">
-                    <span class="text-5xl font-black">{{ analysis.risk_score }}</span>
-                    <span class="text-xs font-bold text-gray-500 uppercase">/ 100</span>
+                    <span class="text-5xl font-display font-bold">{{ analysis.risk_score }}</span>
+                    <span class="text-xs text-[color:var(--text-muted)] uppercase tracking-wider">/ 100</span>
                   </div>
                 </div>
               </div>
-              <div class="bg-white border-4 border-black shadow-neo p-6">
-                <h3 class="text-lg font-black uppercase mb-2 border-b-4 border-black pb-2">Kesehatan Komponen</h3>
+              <div class="panel p-6">
+                <h3 class="font-display text-lg font-bold uppercase tracking-wide mb-3 pb-2 border-b border-[color:var(--border)]">Kesehatan Komponen</h3>
                 <div class="h-48"><canvas id="radar"></canvas></div>
               </div>
             </div>
 
             <!-- Sensor readings -->
-            <div class="bg-white border-4 border-black shadow-neo p-6">
-              <h3 class="text-lg font-black uppercase mb-4 border-b-4 border-black pb-2">Telemetri Sensor Real-Time</h3>
+            <div class="panel p-6">
+              <h3 class="font-display text-lg font-bold uppercase tracking-wide mb-4 pb-2 border-b border-[color:var(--border)]">Telemetri Sensor Real-Time</h3>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div v-for="s in [
                   { label: 'Suhu Mesin', val: analysis.sensor_readings.suhu_mesin + '°C', danger: analysis.sensor_readings.suhu_mesin > 105 },
@@ -522,32 +533,30 @@ const statusLabelColor = (s: string) => ({
                   { label: 'Partikel Oli', val: 'ISO ' + analysis.sensor_readings.oil_particle_iso, danger: analysis.sensor_readings.oil_particle_iso > 19 },
                   { label: 'Emisi Akustik', val: analysis.sensor_readings.acoustic_db + ' dB', danger: analysis.sensor_readings.acoustic_db > 90 },
                   { label: 'Jam Operasi', val: analysis.sensor_readings.jam_operasi + ' h', danger: false },
-                ]" :key="s.label"
-                  :class="s.danger ? 'bg-neoRed text-white' : 'bg-gray-50'"
-                  class="border-2 border-black p-3 text-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                  <p class="text-[9px] font-black uppercase" :class="s.danger ? 'text-red-100' : 'text-gray-500'">{{ s.label }}</p>
-                  <p class="text-lg font-black mt-1">{{ s.val }}</p>
+                ]" :key="s.label" :class="s.danger ? 'cell cell-danger' : 'cell'">
+                  <p class="cell-label">{{ s.label }}</p>
+                  <p class="cell-val text-lg">{{ s.val }}</p>
                 </div>
               </div>
             </div>
 
             <!-- Time-series -->
-            <div class="bg-white border-4 border-black shadow-neo p-6">
-              <h3 class="text-lg font-black uppercase mb-4 border-b-4 border-black pb-2">Tren Sensor 24 Jam Terakhir</h3>
+            <div class="panel p-6">
+              <h3 class="font-display text-lg font-bold uppercase tracking-wide mb-4 pb-2 border-b border-[color:var(--border)]">Tren Sensor 24 Jam Terakhir</h3>
               <div class="h-72"><canvas id="history"></canvas></div>
             </div>
 
-            <!-- Telemetri lengkap 33 kolom (ECM/VIMS, FMS, CMMS, LIMS, Engineered) -->
-            <div class="bg-white border-4 border-black shadow-neo p-6">
-              <div class="flex justify-between items-center mb-4 border-b-4 border-black pb-2 flex-wrap gap-2">
-                <h3 class="text-lg font-black uppercase">Telemetri On-Board (VIMS / KOMTRAX)</h3>
-                <span class="px-3 py-1 border-2 border-black font-black text-xs text-black" :style="{ backgroundColor: statusLabelColor(analysis.telemetry.status_label) }">
+            <!-- Telemetri lengkap -->
+            <div class="panel p-6">
+              <div class="flex justify-between items-center mb-4 pb-2 border-b border-[color:var(--border)] flex-wrap gap-2">
+                <h3 class="font-display text-lg font-bold uppercase tracking-wide">Telemetri On-Board (VIMS / KOMTRAX)</h3>
+                <span class="badge text-white" :style="{ backgroundColor: statusLabelColor(analysis.telemetry.status_label), borderColor: statusLabelColor(analysis.telemetry.status_label) }">
                   STATUS: {{ analysis.telemetry.status_label }}
                 </span>
               </div>
 
-              <!-- ECM / VIMS sensor fisik -->
-              <p class="text-[10px] font-black uppercase text-gray-400 mb-2">⚙️ ECM / VIMS — Sensor Fisik</p>
+              <!-- ECM / VIMS -->
+              <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)] mb-2">⚙️ ECM / VIMS — Sensor Fisik</p>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                 <div v-for="s in [
                   { l: 'Eng Coolant', v: analysis.telemetry.eng_coolant_temp_c + '°C', d: analysis.telemetry.eng_coolant_temp_c > 110 },
@@ -562,118 +571,83 @@ const statusLabelColor = (s: string) => ({
                   { l: 'Brake Cooling', v: analysis.telemetry.brake_cooling_temp_c + '°C', d: analysis.telemetry.brake_cooling_temp_c > 95 },
                   { l: 'Battery', v: analysis.telemetry.battery_voltage + ' V', d: analysis.telemetry.battery_voltage < 23 },
                   { l: 'Idle Ratio', v: (analysis.telemetry.idle_time_ratio * 100).toFixed(0) + '%', d: false },
-                ]" :key="s.l" :class="s.d ? 'bg-neoRed text-white' : 'bg-gray-50'" class="border-2 border-black p-2 text-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                  <p class="text-[9px] font-black uppercase" :class="s.d ? 'text-red-100' : 'text-gray-500'">{{ s.l }}</p>
-                  <p class="text-base font-black mt-0.5">{{ s.v }}</p>
+                ]" :key="s.l" :class="s.d ? 'cell cell-danger' : 'cell'">
+                  <p class="cell-label">{{ s.l }}</p>
+                  <p class="cell-val text-base">{{ s.v }}</p>
                 </div>
               </div>
 
-              <!-- FMS + CMMS + Fault -->
+              <!-- FMS + CMMS + LIMS -->
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                  <p class="text-[10px] font-black uppercase text-gray-400 mb-2">🚚 FMS / Dispatch & 🔧 CMMS</p>
+                  <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)] mb-2">🚚 FMS / Dispatch & 🔧 CMMS</p>
                   <div class="grid grid-cols-2 gap-3">
-                    <div class="border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                      <p class="text-[9px] font-black uppercase text-gray-500">Component Type</p>
-                      <p class="text-sm font-black">{{ analysis.telemetry.component_type }}</p>
-                    </div>
-                    <div class="border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                      <p class="text-[9px] font-black uppercase text-gray-500">Operator</p>
-                      <p class="text-sm font-black">{{ analysis.telemetry.operator_id }}</p>
-                    </div>
-                    <div class="border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                      <p class="text-[9px] font-black uppercase text-gray-500">Payload</p>
-                      <p class="text-sm font-black">{{ analysis.telemetry.payload_tonnage }} t</p>
-                    </div>
-                    <div class="border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                      <p class="text-[9px] font-black uppercase text-gray-500">Ambient Temp</p>
-                      <p class="text-sm font-black">{{ analysis.telemetry.ambient_temp_c }}°C</p>
-                    </div>
-                    <div class="border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                      <p class="text-[9px] font-black uppercase text-gray-500">Hour Meter</p>
-                      <p class="text-sm font-black">{{ analysis.telemetry.hour_meter_actual.toLocaleString() }} HM</p>
-                    </div>
-                    <div class="border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                      <p class="text-[9px] font-black uppercase text-gray-500">Design Life</p>
-                      <p class="text-sm font-black">{{ analysis.telemetry.design_life_hm.toLocaleString() }} HM</p>
-                    </div>
-                    <div class="border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                      <p class="text-[9px] font-black uppercase text-gray-500">Component Age</p>
-                      <p class="text-sm font-black">{{ analysis.telemetry.component_age_hm.toLocaleString() }} HM</p>
-                    </div>
-                    <div class="border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                      <p class="text-[9px] font-black uppercase text-gray-500">Remanufactured</p>
-                      <p class="text-sm font-black">{{ analysis.telemetry.is_remanufactured ? 'YA' : 'TIDAK' }}</p>
-                    </div>
-                    <div class="border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] col-span-2"
-                      :class="analysis.telemetry.fault_code_severity >= 3 ? 'bg-neoRed text-white' : analysis.telemetry.fault_code_severity >= 2 ? 'bg-miningYellow' : 'bg-gray-50'">
-                      <p class="text-[9px] font-black uppercase" :class="analysis.telemetry.fault_code_severity >= 3 ? 'text-red-100' : 'text-gray-500'">Fault Code Severity (DTC)</p>
-                      <p class="text-sm font-black">Level {{ analysis.telemetry.fault_code_severity }} / 4</p>
+                    <div class="cell !text-left"><p class="cell-label">Component Type</p><p class="cell-val text-sm">{{ analysis.telemetry.component_type }}</p></div>
+                    <div class="cell !text-left"><p class="cell-label">Operator</p><p class="cell-val text-sm">{{ analysis.telemetry.operator_id }}</p></div>
+                    <div class="cell !text-left"><p class="cell-label">Payload</p><p class="cell-val text-sm">{{ analysis.telemetry.payload_tonnage }} t</p></div>
+                    <div class="cell !text-left"><p class="cell-label">Ambient Temp</p><p class="cell-val text-sm">{{ analysis.telemetry.ambient_temp_c }}°C</p></div>
+                    <div class="cell !text-left"><p class="cell-label">Hour Meter</p><p class="cell-val text-sm">{{ analysis.telemetry.hour_meter_actual.toLocaleString() }} HM</p></div>
+                    <div class="cell !text-left"><p class="cell-label">Design Life</p><p class="cell-val text-sm">{{ analysis.telemetry.design_life_hm.toLocaleString() }} HM</p></div>
+                    <div class="cell !text-left"><p class="cell-label">Component Age</p><p class="cell-val text-sm">{{ analysis.telemetry.component_age_hm.toLocaleString() }} HM</p></div>
+                    <div class="cell !text-left"><p class="cell-label">Remanufactured</p><p class="cell-val text-sm">{{ analysis.telemetry.is_remanufactured ? 'YA' : 'TIDAK' }}</p></div>
+                    <div class="!text-left col-span-2 rounded-[10px] p-2.5 border"
+                      :class="analysis.telemetry.fault_code_severity >= 3 ? 'cell-danger' : analysis.telemetry.fault_code_severity >= 2 ? 'cell-warn' : 'cell'">
+                      <p class="cell-label">Fault Code Severity (DTC)</p>
+                      <p class="cell-val text-sm">Level {{ analysis.telemetry.fault_code_severity }} / 4</p>
                     </div>
                   </div>
                 </div>
 
-                <!-- LIMS lab oli -->
+                <!-- LIMS -->
                 <div>
-                  <p class="text-[10px] font-black uppercase text-gray-400 mb-2">🧪 LIMS — Analisis Pelumas</p>
+                  <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)] mb-2">🧪 LIMS — Analisis Pelumas</p>
                   <div class="h-40 mb-3"><canvas id="labMetals"></canvas></div>
                   <div class="grid grid-cols-3 gap-2">
-                    <div class="border-2 border-black p-2 text-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                      <p class="text-[8px] font-black uppercase text-gray-500">Viskositas 100C</p>
-                      <p class="text-sm font-black">{{ analysis.telemetry.lab_viscosity_100c }}</p>
-                    </div>
-                    <div class="border-2 border-black p-2 text-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                      :class="analysis.telemetry.lab_water_content_pct > 0.5 ? 'bg-neoRed text-white' : ''">
-                      <p class="text-[8px] font-black uppercase" :class="analysis.telemetry.lab_water_content_pct > 0.5 ? 'text-red-100' : 'text-gray-500'">Water %</p>
-                      <p class="text-sm font-black">{{ analysis.telemetry.lab_water_content_pct }}</p>
-                    </div>
-                    <div class="border-2 border-black p-2 text-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                      :class="analysis.telemetry.lab_soot_pct > 3 ? 'bg-miningYellow' : ''">
-                      <p class="text-[8px] font-black uppercase text-gray-500">Soot %</p>
-                      <p class="text-sm font-black">{{ analysis.telemetry.lab_soot_pct }}</p>
-                    </div>
+                    <div class="cell"><p class="cell-label">Viskositas 100C</p><p class="cell-val text-sm">{{ analysis.telemetry.lab_viscosity_100c }}</p></div>
+                    <div :class="analysis.telemetry.lab_water_content_pct > 0.5 ? 'cell cell-danger' : 'cell'"><p class="cell-label">Water %</p><p class="cell-val text-sm">{{ analysis.telemetry.lab_water_content_pct }}</p></div>
+                    <div :class="analysis.telemetry.lab_soot_pct > 3 ? 'cell cell-warn' : 'cell'"><p class="cell-label">Soot %</p><p class="cell-val text-sm">{{ analysis.telemetry.lab_soot_pct }}</p></div>
                   </div>
                 </div>
               </div>
 
               <!-- Engineer generated -->
-              <p class="text-[10px] font-black uppercase text-gray-400 mb-2">🧮 Engineer Generated Features</p>
+              <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)] mb-2">🧮 Engineer Generated Features</p>
               <div class="grid grid-cols-3 gap-3">
-                <div class="border-2 border-black p-3 text-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-neoBlue text-white">
-                  <p class="text-[9px] font-black uppercase text-blue-100">Delta Eng Temp</p>
-                  <p class="text-xl font-black">{{ analysis.telemetry.delta_eng_temp }}°C</p>
+                <div class="rounded-[10px] p-3 text-center text-white" style="background:#3E92CC">
+                  <p class="text-[9px] font-semibold uppercase tracking-wider text-white/80">Delta Eng Temp</p>
+                  <p class="text-xl font-display font-bold">{{ analysis.telemetry.delta_eng_temp }}°C</p>
                 </div>
-                <div class="border-2 border-black p-3 text-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" :style="{ backgroundColor: statusLabelColor(analysis.telemetry.status_label) }">
-                  <p class="text-[9px] font-black uppercase">Status Label</p>
-                  <p class="text-xl font-black">{{ analysis.telemetry.status_label }}</p>
+                <div class="rounded-[10px] p-3 text-center text-white" :style="{ backgroundColor: statusLabelColor(analysis.telemetry.status_label) }">
+                  <p class="text-[9px] font-semibold uppercase tracking-wider text-white/80">Status Label</p>
+                  <p class="text-xl font-display font-bold">{{ analysis.telemetry.status_label }}</p>
                 </div>
-                <div class="border-2 border-black p-3 text-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-black text-white">
-                  <p class="text-[9px] font-black uppercase text-gray-400">RUL (Telemetri)</p>
-                  <p class="text-xl font-black text-miningYellow">{{ fmtHours(analysis.telemetry.rul_hours) }}</p>
+                <div class="rounded-[10px] p-3 text-center bg-steel-gradient text-white">
+                  <p class="text-[9px] font-semibold uppercase tracking-wider text-graphite-300">RUL (Telemetri)</p>
+                  <p class="text-xl font-display font-bold text-amber">{{ fmtHours(analysis.telemetry.rul_hours) }}</p>
                 </div>
               </div>
             </div>
 
             <!-- RUL + SHAP -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div class="bg-white border-4 border-black shadow-neo p-6">
-                <h3 class="text-lg font-black uppercase mb-4 border-b-4 border-black pb-2">Prediksi Sisa Umur (RUL)</h3>
+              <div class="panel p-6">
+                <h3 class="font-display text-lg font-bold uppercase tracking-wide mb-4 pb-2 border-b border-[color:var(--border)]">Prediksi Sisa Umur (RUL)</h3>
                 <div class="text-center py-4">
-                  <p class="text-xs font-bold text-gray-500 uppercase">Komponen Terlemah</p>
-                  <p class="text-2xl font-black mb-4">{{ analysis.rul_prediction.component }}</p>
-                  <div class="bg-black text-white border-4 border-black p-4 shadow-[4px_4px_0px_0px_#FFCC00]">
-                    <p class="text-[10px] font-bold text-gray-400 uppercase">Estimasi Sebelum Kegagalan</p>
-                    <p class="text-3xl font-black text-miningYellow mt-1">{{ fmtHours(analysis.rul_prediction.hours_remaining) }}</p>
-                    <p class="text-[10px] font-bold text-gray-400 mt-2">
+                  <p class="text-xs text-[color:var(--text-muted)] uppercase tracking-wider">Komponen Terlemah</p>
+                  <p class="font-display text-2xl font-bold mb-4">{{ analysis.rul_prediction.component }}</p>
+                  <div class="rounded-xl bg-steel-gradient text-white p-4">
+                    <p class="text-[10px] text-graphite-300 uppercase tracking-wider">Estimasi Sebelum Kegagalan</p>
+                    <p class="text-3xl font-display font-bold text-amber mt-1">{{ fmtHours(analysis.rul_prediction.hours_remaining) }}</p>
+                    <p class="text-[10px] text-graphite-300 mt-2 font-mono">
                       Rentang: {{ Math.round(analysis.rul_prediction.lower_bound) }}–{{ Math.round(analysis.rul_prediction.upper_bound) }} jam ·
                       Confidence {{ analysis.rul_prediction.confidence }}%
                     </p>
                   </div>
                 </div>
               </div>
-              <div class="bg-white border-4 border-black shadow-neo p-6">
-                <h3 class="text-lg font-black uppercase mb-2 border-b-4 border-black pb-2">Faktor Penyebab (SHAP)</h3>
-                <p class="text-[10px] font-bold text-gray-500 mb-2">Kontribusi tiap sensor terhadap skor risiko</p>
+              <div class="panel p-6">
+                <h3 class="font-display text-lg font-bold uppercase tracking-wide mb-2 pb-2 border-b border-[color:var(--border)]">Faktor Penyebab (SHAP)</h3>
+                <p class="text-[10px] text-[color:var(--text-muted)] mb-2">Kontribusi tiap sensor terhadap skor risiko</p>
                 <div class="h-56"><canvas id="shap"></canvas></div>
               </div>
             </div>
@@ -684,9 +658,30 @@ const statusLabelColor = (s: string) => ({
   </div>
 </template>
 
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@900&family=Space+Mono:wght@400;700&display=swap');
-body { font-family: 'Space Mono', monospace; }
-h1,h2,h3,button,.font-black { font-family: 'Public Sans', sans-serif; font-weight: 900; }
-canvas { max-width: 100%; }
+<style scoped>
+.cell {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: .6rem;
+  text-align: center;
+}
+.cell-danger {
+  background: rgba(224,65,62,0.12) !important;
+  border-color: rgba(224,65,62,0.40) !important;
+  color: var(--critical) !important;
+}
+.cell-warn {
+  background: rgba(224,161,6,0.14) !important;
+  border-color: rgba(224,161,6,0.45) !important;
+  color: var(--warning) !important;
+}
+.cell-label {
+  font-size: .6rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em;
+  color: var(--text-faint);
+}
+.cell-danger .cell-label, .cell-warn .cell-label { color: inherit; opacity: .85; }
+.cell-val { font-weight: 700; margin-top: .15rem; color: var(--text); }
+.cell-danger .cell-val, .cell-warn .cell-val { color: inherit; }
 </style>

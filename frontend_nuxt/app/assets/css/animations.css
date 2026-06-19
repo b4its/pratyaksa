@@ -1,41 +1,310 @@
 /* ============================================================
-   PRATYAKSA — Global Animation Layer
-   Animasi 3D interaktif + micro-interactions
+   PRATYAKSA — Mining / Industrial Design System
+   Control-room aesthetic · graphite & hi-vis amber · soft elevation
    ============================================================ */
 
-/* ---- Page transition (Nuxt) ---- */
+/* ---- Fonts ---- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Saira+Condensed:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+  --bg:            #e8ebee;
+  --bg-2:          #dfe3e8;
+  --surface:       #ffffff;
+  --surface-2:     #f4f6f8;
+  --surface-3:     #eceff2;
+  --border:        #d7dde4;
+  --border-strong: #c2cad3;
+  --text:          #1b2128;
+  --text-muted:    #5d6b7a;
+  --text-faint:    #8a96a3;
+
+  --amber:    #F2A60C;
+  --amber-deep: #D9930A;
+  --copper:   #C2703D;
+  --steel:    #3E92CC;
+
+  --healthy:  #1FA971;
+  --warning:  #E0A106;
+  --critical: #E0413E;
+  --rusak:    #7A848E;
+
+  --shadow:    0 18px 44px -20px rgba(12,16,20,0.45);
+  --shadow-sm: 0 4px 14px -8px rgba(12,16,20,0.30);
+  --ring:      rgba(242,166,12,0.35);
+
+  --radius:    16px;
+  --radius-sm: 10px;
+}
+
+.dark {
+  --bg:            #0c1014;
+  --bg-2:          #0a0d11;
+  --surface:       #161d24;
+  --surface-2:     #1b232c;
+  --surface-3:     #212b35;
+  --border:        #2a343f;
+  --border-strong: #38444f;
+  --text:          #e6eaef;
+  --text-muted:    #9aa7b4;
+  --text-faint:    #6b7785;
+
+  --shadow:    0 24px 56px -22px rgba(0,0,0,0.7);
+  --shadow-sm: 0 6px 18px -10px rgba(0,0,0,0.6);
+}
+
+html {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Display headings → industrial signage feel */
+.font-display {
+  font-family: 'Saira Condensed', 'Inter', sans-serif;
+  letter-spacing: 0.01em;
+}
+
+/* ============================================================
+   MINING TEXTURES & BACKDROPS
+   ============================================================ */
+
+/* Topographic contour lines (mine survey) */
+.bg-topo {
+  background-color: var(--bg);
+  background-image:
+    repeating-radial-gradient(circle at 18% 30%, transparent 0, transparent 38px, rgba(62,146,204,0.05) 39px, transparent 40px),
+    repeating-radial-gradient(circle at 82% 75%, transparent 0, transparent 46px, rgba(194,112,61,0.05) 47px, transparent 48px);
+}
+
+/* Steel mesh / blueprint grid */
+.bg-mesh {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(to right, rgba(86,100,121,0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(86,100,121,0.07) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+.dark .bg-mesh {
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.035) 1px, transparent 1px);
+}
+
+/* Fine dotted ore field */
+.bg-ore-dots {
+  background-image: radial-gradient(rgba(86,100,121,0.18) 1.4px, transparent 1.4px);
+  background-size: 22px 22px;
+}
+.dark .bg-ore-dots {
+  background-image: radial-gradient(rgba(255,255,255,0.07) 1.4px, transparent 1.4px);
+}
+
+/* Hazard stripe accent (safety signage) */
+.hazard-stripe {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    #F2A60C 0, #F2A60C 14px,
+    #171d24 14px, #171d24 28px
+  );
+}
+
+/* ============================================================
+   COMPONENT LAYER
+   ============================================================ */
+
+/* Surface / Panel */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.panel-flat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.panel-raised {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* KPI card with subtle top accent */
+.kpi {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: transform .25s cubic-bezier(.22,1,.36,1), box-shadow .25s ease;
+}
+.kpi:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.kpi::before {
+  content: '';
+  position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: var(--accent, var(--amber));
+  opacity: .9;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  font-weight: 600; font-size: .875rem;
+  padding: .6rem 1.1rem; border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  transition: transform .15s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease, border-color .2s ease;
+  cursor: pointer; line-height: 1;
+}
+.btn:active { transform: translateY(1px); }
+.btn-amber {
+  background: linear-gradient(135deg, #F2A60C 0%, #D9930A 100%);
+  color: #1b1206;
+  box-shadow: 0 8px 20px -10px rgba(242,166,12,0.6);
+}
+.btn-amber:hover { box-shadow: 0 10px 26px -8px rgba(242,166,12,0.7); transform: translateY(-1px); }
+.btn-dark {
+  background: var(--text);
+  color: var(--surface);
+}
+.btn-dark:hover { opacity: .92; transform: translateY(-1px); }
+.btn-ghost {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.btn-ghost:hover { background: var(--surface-2); border-color: var(--steel); }
+.btn-danger {
+  background: var(--critical);
+  color: #fff;
+}
+.btn-danger:hover { filter: brightness(1.05); transform: translateY(-1px); }
+
+/* Form fields */
+.field {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: .7rem .9rem;
+  color: var(--text);
+  font-size: .9rem;
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+.field::placeholder { color: var(--text-faint); }
+.field:focus {
+  outline: none;
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px var(--ring);
+  background: var(--surface);
+}
+
+/* Labels */
+.label {
+  display: block;
+  font-size: .7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-muted);
+  margin-bottom: .4rem;
+}
+
+/* Badge / chip */
+.badge {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .68rem; font-weight: 700; letter-spacing: .04em;
+  padding: .22rem .6rem; border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  text-transform: uppercase;
+}
+
+/* Sidebar nav link */
+.nav-link {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .7rem .85rem; border-radius: var(--radius-sm);
+  font-weight: 600; font-size: .9rem;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  transition: all .18s ease;
+  position: relative;
+}
+.nav-link:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.nav-link-active {
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+.nav-link-active::before {
+  content: '';
+  position: absolute; left: 0; top: 18%; bottom: 18%;
+  width: 3px; border-radius: 0 3px 3px 0;
+  background: var(--amber);
+}
+
+/* Industrial table */
+.table-industrial { width: 100%; border-collapse: collapse; }
+.table-industrial thead th {
+  background: var(--surface-3);
+  color: var(--text-muted);
+  font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  text-align: left; padding: .85rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.table-industrial tbody td {
+  padding: .85rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.table-industrial tbody tr { transition: background-color .15s ease; }
+.table-industrial tbody tr:hover { background: var(--surface-2); }
+.table-industrial tbody tr:last-child td { border-bottom: none; }
+
+/* Modal */
+.modal-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(8,11,14,0.62);
+  backdrop-filter: blur(6px);
+}
+.modal-card {
+  position: relative; z-index: 10;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow), 0 0 0 1px rgba(255,255,255,0.02);
+  overflow: hidden;
+}
+
+/* Divider */
+.hr-soft { height: 1px; background: var(--border); border: 0; }
+
+/* ============================================================
+   PAGE TRANSITION
+   ============================================================ */
 .page-enter-active,
-.page-leave-active {
-  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.page-enter-from {
-  opacity: 0;
-  transform: translateY(24px) scale(0.98);
-}
-.page-leave-to {
-  opacity: 0;
-  transform: translateY(-16px) scale(0.99);
-}
+.page-leave-active { transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
+.page-enter-from { opacity: 0; transform: translateY(14px); }
+.page-leave-to  { opacity: 0; transform: translateY(-10px); }
 
-/* ---- Entrance animations ---- */
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(28px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeInScale {
-  from { opacity: 0; transform: scale(0.9); }
-  to   { opacity: 1; transform: scale(1); }
-}
-@keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-40px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
+/* ============================================================
+   ENTRANCE ANIMATIONS
+   ============================================================ */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeInScale { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes slideInLeft { from { opacity: 0; transform: translateX(-32px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes popup { 0% { transform: scale(0.97) translateY(8px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
 
-.anim-up   { opacity: 0; animation: fadeInUp 0.6s cubic-bezier(0.22,1,0.36,1) forwards; }
-.anim-pop  { opacity: 0; animation: fadeInScale 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.anim-up   { opacity: 0; animation: fadeInUp 0.55s cubic-bezier(0.22,1,0.36,1) forwards; }
+.anim-pop  { opacity: 0; animation: fadeInScale 0.45s cubic-bezier(0.34,1.4,0.64,1) forwards; }
 .anim-left { opacity: 0; animation: slideInLeft 0.5s ease-out forwards; }
 
-/* stagger delays */
 .d-1 { animation-delay: 0.05s; }
 .d-2 { animation-delay: 0.12s; }
 .d-3 { animation-delay: 0.19s; }
@@ -44,98 +313,85 @@
 .d-6 { animation-delay: 0.40s; }
 
 /* ---- Floating idle motion ---- */
-@keyframes floaty {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-8px); }
-}
-.anim-float { animation: floaty 5s ease-in-out infinite; }
+@keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.anim-float { animation: floaty 6s ease-in-out infinite; }
 
-/* ---- Glow pulse (untuk status kritis) ---- */
+/* ---- Glow pulse (status kritis) ---- */
 @keyframes glowPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255,73,17,0.5); }
-  50%      { box-shadow: 0 0 0 10px rgba(255,73,17,0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(224,65,62,0.45); }
+  50%      { box-shadow: 0 0 0 8px rgba(224,65,62,0); }
 }
-.anim-glow { animation: glowPulse 1.8s ease-out infinite; }
+.anim-glow { animation: glowPulse 2s ease-out infinite; }
 
 /* ---- Shimmer skeleton ---- */
-@keyframes shimmer {
-  0%   { background-position: -468px 0; }
-  100% { background-position: 468px 0; }
-}
+@keyframes shimmer { 0% { background-position: -468px 0; } 100% { background-position: 468px 0; } }
 .shimmer {
-  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
   background-size: 936px 100%;
   animation: shimmer 1.4s linear infinite;
 }
 
-/* ---- Gradient shift (animated bg) ---- */
-@keyframes gradientShift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-.anim-gradient {
-  background-size: 200% 200%;
-  animation: gradientShift 8s ease infinite;
-}
+/* ---- Gradient shift ---- */
+@keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+.anim-gradient { background-size: 200% 200%; animation: gradientShift 9s ease infinite; }
 
-/* ---- 3D Tilt card (driven by v-tilt directive) ---- */
+/* ---- Live indicator ---- */
+@keyframes spinSlow { to { transform: rotate(360deg); } }
+.anim-spin-slow { animation: spinSlow 4s linear infinite; }
+@keyframes livePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.8); } }
+.anim-live { animation: livePulse 1.3s ease-in-out infinite; }
+
+/* progress bar grow */
+.animate-progress-grow { transform-origin: left; animation: scaleXRight 0.8s cubic-bezier(.22,1,.36,1) forwards; }
+@keyframes scaleXRight { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+
+/* ---- Count-up flash ---- */
+@keyframes valueFlash { 0% { color: var(--amber); } 100% { color: inherit; } }
+.value-flash { animation: valueFlash 0.5s ease-out; }
+
+/* ---- 3D Tilt card ---- */
 .tilt-card {
   transform-style: preserve-3d;
-  transition: transform 0.18s cubic-bezier(0.22,1,0.36,1), box-shadow 0.18s ease;
+  transition: transform 0.2s cubic-bezier(0.22,1,0.36,1), box-shadow 0.2s ease;
   will-change: transform;
 }
-.tilt-card > * {
-  transform: translateZ(0);
-}
+.tilt-card > * { transform: translateZ(0); }
 .tilt-shine {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,0.45), transparent 45%);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  mix-blend-mode: soft-light;
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,0.35), transparent 45%);
+  opacity: 0; transition: opacity 0.2s ease; mix-blend-mode: soft-light;
 }
 .tilt-card:hover .tilt-shine { opacity: 1; }
 
-/* ---- Hover lift (neo brutalism friendly) ---- */
-.lift {
-  transition: transform 0.18s cubic-bezier(0.22,1,0.36,1), box-shadow 0.18s ease;
-}
-.lift:hover {
-  transform: translate(-3px, -3px);
-}
+/* ---- Hover lift ---- */
+.lift { transition: transform 0.18s cubic-bezier(0.22,1,0.36,1), box-shadow 0.18s ease; }
+.lift:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 
-/* ---- Spin / live indicator ---- */
-@keyframes spinSlow { to { transform: rotate(360deg); } }
-.anim-spin-slow { animation: spinSlow 3s linear infinite; }
-
-@keyframes livePulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%      { opacity: 0.4; transform: scale(0.8); }
-}
-.anim-live { animation: livePulse 1.2s ease-in-out infinite; }
-
-/* ---- Count-up flash ---- */
-@keyframes valueFlash {
-  0%   { color: #FF4911; }
-  100% { color: inherit; }
-}
-.value-flash { animation: valueFlash 0.5s ease-out; }
-
-/* ---- Model viewer container glow ring ---- */
-.viewer-3d {
-  position: relative;
-  overflow: hidden;
-}
+/* ---- 3D viewer frame ---- */
+.viewer-3d { position: relative; overflow: hidden; }
 .viewer-3d::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 120%, rgba(51,168,255,0.25), transparent 60%);
-  pointer-events: none;
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 50% 120%, rgba(62,146,204,0.22), transparent 60%);
 }
+
+/* ---- Marquee ---- */
+@keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
+.animate-marquee { width: max-content; animation: marquee 26s linear infinite; }
+.animate-marquee:hover { animation-play-state: paused; }
+
+/* ---- Leaflet popup re-skin ---- */
+.leaflet-container { z-index: 1 !important; font-family: 'Inter', sans-serif; }
+.custom-leaflet-popup .leaflet-popup-content-wrapper { background: transparent; box-shadow: none; padding: 0; }
+.custom-leaflet-popup .leaflet-popup-content { margin: 0; width: auto !important; }
+.custom-leaflet-popup .leaflet-popup-tip { display: none; }
+
+/* ---- Scrollbar (industrial) ---- */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--surface-2); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; border: 2px solid var(--surface-2); }
+::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+canvas { max-width: 100%; }
 
 /* respect reduced motion */
 @media (prefers-reduced-motion: reduce) {

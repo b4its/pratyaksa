@@ -10,11 +10,11 @@ useHead({
 
 // ---- Sidebar ----
 const menuItems = [
-  { name: 'Dashboard',       path: '/panel/dashboard',         icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><rect width="7" height="9" x="3" y="3"/><rect width="7" height="5" x="14" y="3"/><rect width="7" height="9" x="14" y="12"/><rect width="7" height="5" x="3" y="16"/></svg>` },
-  { name: 'Jenis Alat Berat', path: '/panel/jenis_alat_berat', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-9l-2.5-3.5H14v12h3"/><path d="M14 6h4.5"/><circle cx="18.5" cy="17.5" r="2.5"/><circle cx="5.5" cy="17.5" r="2.5"/></svg>` },
-  { name: 'Unit Tambang',    path: '/panel/unit_tambang',      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>` },
-  { name: 'Analisa Kerusakan', path: '/panel/analisa',         icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>` },
-  { name: 'Kembali',         path: '../',                       icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>` },
+  { name: 'Dashboard',       path: '/panel/dashboard',         icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>` },
+  { name: 'Jenis Alat Berat', path: '/panel/jenis_alat_berat', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-9l-2.5-3.5H14v12h3"/><path d="M14 6h4.5"/><circle cx="18.5" cy="17.5" r="2.5"/><circle cx="5.5" cy="17.5" r="2.5"/></svg>` },
+  { name: 'Unit Tambang',    path: '/panel/unit_tambang',      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>` },
+  { name: 'Analisa Kerusakan', path: '/panel/analisa',         icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>` },
+  { name: 'Kembali',         path: '../',                       icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>` },
 ]
 const activeMenu = ref('Unit Tambang')
 
@@ -169,7 +169,7 @@ const remove = async (unit: UnitTambang) => {
 }
 
 // ---- Helpers ----
-const getStatusColor = (s: string) => ({ SEHAT: 'bg-emerald-400', WARNING: 'bg-miningYellow', CRITICAL: 'bg-neoRed text-white', RUSAK: 'bg-gray-400' }[s] || 'bg-white')
+const statusHex = (s: string) => ({ SEHAT: '#1FA971', WARNING: '#E0A106', CRITICAL: '#E0413E', RUSAK: '#7A848E' }[s] || '#7A848E')
 
 const visiblePages = computed(() => {
   const max = 3, tp = totalPages.value, cp = currentPage.value
@@ -194,118 +194,134 @@ const exportCSV = () => {
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-[#F1F1F1] font-mono text-black">
+  <div class="flex min-h-screen bg-mesh text-[color:var(--text)]">
 
     <!-- Sidebar -->
-    <aside class="w-72 border-r-4 border-black bg-white p-6 flex flex-col justify-between z-10 shrink-0">
+    <aside class="w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)] p-5 flex flex-col justify-between z-10 shrink-0">
       <div>
-        <div class="mb-10 flex justify-center">
-          <div class="bg-miningYellow border-4 border-black p-4 shadow-neo w-24 h-24 flex items-center justify-center rounded-xl">
-            <span class="text-5xl font-black italic">V</span>
+        <div class="flex items-center gap-3 mb-9 px-1">
+          <div class="w-11 h-11 rounded-xl bg-amber-gradient flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(242,166,12,0.7)]">
+            <svg class="w-6 h-6 text-graphite-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>
+          </div>
+          <div>
+            <p class="font-display text-xl font-bold tracking-wide leading-none">PRAT<span class="text-amber">YAKSA</span></p>
+            <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-faint)] mt-1">Control Panel</p>
           </div>
         </div>
-        <nav class="space-y-4">
+        <nav class="space-y-1.5">
           <NuxtLink v-for="item in menuItems" :key="item.name" :to="item.path"
             @click="activeMenu = item.name"
-            :class="['w-full flex items-center gap-3 p-3 border-2 font-bold transition-all cursor-pointer',
-              activeMenu === item.name ? 'border-black bg-miningYellow shadow-neoHover' : 'border-transparent hover:border-black hover:bg-white hover:shadow-neoHover']">
-            <div v-if="activeMenu === item.name" class="p-1 border-2 border-black bg-white shrink-0"><div class="w-2.5 h-2.5 bg-black"></div></div>
-            <div v-else class="w-2.5 h-2.5 border-2 border-black ml-1.5 shrink-0"></div>
-            <div class="flex items-center gap-3 w-full">
-              <div class="flex items-center justify-center shrink-0" v-html="item.icon"></div>
-              <span class="truncate">{{ item.name }}</span>
-            </div>
+            :class="['nav-link', activeMenu === item.name ? 'nav-link-active' : '']">
+            <span class="flex items-center justify-center shrink-0" v-html="item.icon"></span>
+            <span class="truncate">{{ item.name }}</span>
           </NuxtLink>
         </nav>
+      </div>
+      <div class="panel-flat p-4">
+        <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)]">Logged in as</p>
+        <div class="flex items-center gap-3 mt-2">
+          <div class="w-9 h-9 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-sm">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
+          <p class="font-semibold text-sm truncate">{{ user?.name || 'Admin' }}</p>
+        </div>
       </div>
     </aside>
 
     <!-- Main -->
     <main class="flex-1 p-8 overflow-y-auto">
-      <header class="flex justify-between items-start mb-10">
+      <header class="flex justify-between items-start mb-8 gap-4 flex-wrap">
         <div>
-          <h1 class="text-6xl font-black uppercase tracking-tighter leading-none">Unit Tambang</h1>
-          <p class="mt-2 font-bold text-gray-600 bg-white border-b-2 border-black inline-block">Unit yang beroperasi saat ini dan masih aktif berjalan.</p>
+          <h1 class="font-display text-4xl md:text-5xl font-bold uppercase tracking-wide leading-none">Unit Tambang</h1>
+          <p class="mt-2 text-[color:var(--text-muted)]">Unit yang beroperasi saat ini dan masih aktif berjalan.</p>
         </div>
-        <div class="flex items-center gap-3 p-2 border-4 border-black bg-white shadow-neoHover">
-          <div class="w-8 h-8 rounded-full border-2 border-black bg-neoBlue"></div>
-          <span class="font-black text-sm">{{ user?.name || 'Admin' }}</span>
+        <div class="flex items-center gap-3 panel-flat px-3 py-2">
+          <div class="w-8 h-8 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-xs">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
+          <span class="font-semibold text-sm">{{ user?.name || 'Admin' }}</span>
         </div>
       </header>
 
-      <div v-if="errorMsg" class="mb-6 p-4 bg-neoRed text-white border-4 border-black font-bold shadow-neo">⚠️ {{ errorMsg }}</div>
+      <div v-if="errorMsg" class="mb-6 px-4 py-3 rounded-xl bg-critical/10 border border-critical/40 text-critical font-semibold flex items-center gap-2">⚠️ {{ errorMsg }}</div>
 
       <!-- Actions Bar -->
-      <div class="flex justify-between items-center mb-8 gap-4 flex-wrap">
-        <div class="flex gap-4 flex-1 flex-wrap">
-          <input v-model="searchQuery" @keyup.enter="onSearch" type="text" placeholder="Cari kode / nama unit..."
-            class="flex-1 min-w-48 p-4 border-4 border-black shadow-neoHover focus:outline-none focus:bg-miningYellow/10 font-bold placeholder:text-gray-400" />
-          <select v-model="filterStatus" @change="onFilterStatus"
-            class="p-4 border-4 border-black bg-white font-black shadow-neoHover appearance-none cursor-pointer px-6">
+      <div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
+        <div class="flex gap-3 flex-1 flex-wrap">
+          <div class="relative flex-1 min-w-48">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input v-model="searchQuery" @keyup.enter="onSearch" type="text" placeholder="Cari kode / nama unit..." class="field !pl-9" />
+          </div>
+          <select v-model="filterStatus" @change="onFilterStatus" class="field !w-auto cursor-pointer">
             <option value="">Semua Status</option>
             <option v-for="s in statusOptions" :key="s" :value="s">{{ s }}</option>
           </select>
-          <button @click="onSearch" class="p-4 border-4 border-black bg-white font-black shadow-neoHover hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all px-8">CARI</button>
-          <button @click="isExportOpen = true" class="bg-black text-white p-4 font-black shadow-[4px_4px_0px_0px_#FFCC00] flex items-center gap-2 hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all border-2 border-black">
-            EKSPORT <span class="text-miningYellow">↓</span>
+          <button @click="onSearch" class="btn btn-ghost px-6">Cari</button>
+          <button @click="isExportOpen = true" class="btn btn-dark px-5">
+            Ekspor
+            <svg class="w-4 h-4 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
           </button>
         </div>
-        <button @click="openAdd" class="bg-emerald-400 text-black p-4 font-black shadow-[4px_4px_0px_0px_#000] flex items-center gap-2 hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all border-4 border-black">
-          + TAMBAH UNIT
+        <button @click="openAdd" class="btn btn-amber px-5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Tambah Unit
         </button>
       </div>
 
       <!-- Table -->
-      <section class="border-4 border-black bg-white shadow-neo overflow-hidden">
-        <table class="w-full border-collapse">
+      <section class="panel-raised overflow-hidden">
+        <table class="table-industrial">
           <thead>
-            <tr class="bg-black text-white">
-              <th v-for="h in ['Kode Unik','Nama Unit','Status','Health','Jadwal','Saving','Aksi']" :key="h"
-                class="p-4 text-left font-black uppercase text-xs tracking-widest border-r border-white/20">{{ h }}</th>
+            <tr>
+              <th v-for="h in ['Kode Unik','Nama Unit','Status','Health','Jadwal','Saving','Aksi']" :key="h">{{ h }}</th>
             </tr>
           </thead>
           <tbody>
             <template v-if="isLoading">
-              <tr v-for="i in 5" :key="i" class="border-b-4 border-black">
-                <td v-for="j in 7" :key="j" class="p-4"><div class="h-4 bg-gray-200 animate-pulse rounded"></div></td>
+              <tr v-for="i in 5" :key="i">
+                <td v-for="j in 7" :key="j"><div class="h-4 shimmer rounded"></div></td>
               </tr>
             </template>
             <tr v-else-if="units.length === 0">
-              <td colspan="7" class="p-12 text-center font-bold text-gray-400">
-                {{ searchQuery || filterStatus ? 'Tidak ada unit yang cocok.' : 'Belum ada unit. Klik + TAMBAH UNIT.' }}
+              <td colspan="7" class="!py-12 text-center text-[color:var(--text-faint)] font-medium">
+                {{ searchQuery || filterStatus ? 'Tidak ada unit yang cocok.' : 'Belum ada unit. Klik Tambah Unit.' }}
               </td>
             </tr>
-            <tr v-else v-for="unit in units" :key="unit.id" class="border-b-4 border-black hover:bg-gray-50 transition-colors">
-              <td class="p-4 font-black italic">{{ unit.code }}</td>
-              <td class="p-4 font-bold text-sm">{{ unit.jenis_alat_berat_nama || '—' }}</td>
-              <td class="p-4">
-                <span :class="getStatusColor(unit.status)" class="px-2 py-1 border-2 border-black font-black text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">{{ unit.status }}</span>
+            <tr v-else v-for="unit in units" :key="unit.id">
+              <td class="font-mono font-semibold">{{ unit.code }}</td>
+              <td class="text-sm">{{ unit.jenis_alat_berat_nama || '—' }}</td>
+              <td>
+                <span class="badge text-white" :style="{ backgroundColor: statusHex(unit.status), borderColor: statusHex(unit.status) }">{{ unit.status }}</span>
               </td>
-              <td class="p-4 font-black">{{ unit.health }}%</td>
-              <td class="p-4 font-bold text-xs">{{ unit.maintenance }}</td>
-              <td class="p-4 font-black text-sm" :class="unit.savings >= 0 ? 'text-emerald-600' : 'text-neoRed'">
+              <td>
+                <div class="flex items-center gap-2">
+                  <div class="w-14 h-1.5 rounded-full bg-[color:var(--surface-3)] overflow-hidden">
+                    <div class="h-full rounded-full" :style="{ width: unit.health + '%', backgroundColor: statusHex(unit.status) }"></div>
+                  </div>
+                  <span class="font-mono font-semibold text-sm">{{ unit.health }}%</span>
+                </div>
+              </td>
+              <td class="text-xs text-[color:var(--text-muted)]">{{ unit.maintenance }}</td>
+              <td class="font-mono font-semibold text-sm" :class="unit.savings >= 0 ? 'text-healthy' : 'text-critical'">
                 {{ unit.savings >= 0 ? '+$' : '-$' }}{{ Math.abs(unit.savings).toLocaleString() }}
               </td>
-              <td class="p-4 flex gap-2 flex-wrap">
-                <button @click="openDetail(unit)" class="bg-miningYellow border-2 border-black px-3 py-1 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all text-xs">VIEW</button>
-                <button @click="openEdit(unit)" class="bg-white border-2 border-black px-3 py-1 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all text-xs">EDIT</button>
-                <button @click="remove(unit)" class="bg-neoRed text-white border-2 border-black px-3 py-1 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all text-xs">DEL</button>
+              <td>
+                <div class="flex gap-2 flex-wrap">
+                  <button @click="openDetail(unit)" class="btn btn-ghost !px-3 !py-1.5 text-xs">Lihat</button>
+                  <button @click="openEdit(unit)" class="btn btn-ghost !px-3 !py-1.5 text-xs">Edit</button>
+                  <button @click="remove(unit)" class="btn btn-danger !px-3 !py-1.5 text-xs">Hapus</button>
+                </div>
               </td>
             </tr>
           </tbody>
         </table>
 
         <!-- Pagination -->
-        <div class="p-4 border-t-4 border-black bg-white flex justify-between items-center flex-wrap gap-2">
-          <span class="font-bold text-sm text-gray-500">Total: {{ total }} unit</span>
-          <div v-if="totalPages > 1" class="flex gap-2">
-            <button @click="currentPage=1; fetchUnits()" :disabled="currentPage===1" class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 transition-colors">&laquo;</button>
-            <button @click="currentPage--; fetchUnits()" :disabled="currentPage===1" class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 transition-colors">&lt;</button>
+        <div class="px-5 py-4 border-t border-[color:var(--border)] bg-[color:var(--surface-2)] flex justify-between items-center flex-wrap gap-3">
+          <span class="text-sm text-[color:var(--text-muted)] font-medium">Total: <span class="font-mono font-semibold">{{ total }}</span> unit</span>
+          <div v-if="totalPages > 1" class="flex gap-1.5">
+            <button @click="currentPage=1; fetchUnits()" :disabled="currentPage===1" class="pg-btn">«</button>
+            <button @click="currentPage--; fetchUnits()" :disabled="currentPage===1" class="pg-btn">‹</button>
             <button v-for="page in visiblePages" :key="page" @click="currentPage=page; fetchUnits()"
-              :class="currentPage===page ? 'bg-black text-white' : 'bg-white hover:bg-black hover:text-white'"
-              class="w-10 h-10 border-2 border-black flex items-center justify-center font-black transition-colors">{{ page }}</button>
-            <button @click="currentPage++; fetchUnits()" :disabled="currentPage===totalPages" class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 transition-colors">&gt;</button>
-            <button @click="currentPage=totalPages; fetchUnits()" :disabled="currentPage===totalPages" class="w-10 h-10 border-2 border-black flex items-center justify-center font-black hover:bg-black hover:text-white disabled:opacity-50 transition-colors">&raquo;</button>
+              :class="currentPage===page ? 'pg-btn pg-active' : 'pg-btn'">{{ page }}</button>
+            <button @click="currentPage++; fetchUnits()" :disabled="currentPage===totalPages" class="pg-btn">›</button>
+            <button @click="currentPage=totalPages; fetchUnits()" :disabled="currentPage===totalPages" class="pg-btn">»</button>
           </div>
         </div>
       </section>
@@ -313,15 +329,15 @@ const exportCSV = () => {
 
     <!-- Detail Modal -->
     <div v-if="isDetailOpen && selectedUnit" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isDetailOpen = false"></div>
-      <div class="bg-white border-4 border-black shadow-neo w-full max-w-2xl relative z-10 flex flex-col max-h-[90vh] animate-[popup_0.2s_ease-out]">
-        <div class="flex justify-between items-center p-6 border-b-4 border-black bg-miningYellow">
-          <h3 class="text-3xl font-black uppercase">Detail Unit</h3>
-          <button @click="isDetailOpen = false" class="bg-neoRed text-white border-2 border-black w-10 h-10 font-black hover:shadow-none transition-all">X</button>
+      <div class="modal-backdrop" @click="isDetailOpen = false"></div>
+      <div class="modal-card w-full max-w-2xl flex flex-col max-h-[90vh] anim-pop">
+        <div class="flex justify-between items-center px-6 py-4 border-b border-[color:var(--border)] bg-[color:var(--surface-2)]">
+          <h3 class="font-display text-2xl font-bold uppercase tracking-wide">Detail Unit</h3>
+          <button @click="isDetailOpen = false" class="w-9 h-9 rounded-lg hover:bg-critical/15 hover:text-critical text-[color:var(--text-muted)] flex items-center justify-center transition-colors">✕</button>
         </div>
         <div class="p-6 overflow-y-auto">
           <div class="flex flex-col md:flex-row gap-6 mb-6">
-            <div class="viewer-3d w-full md:w-1/2 border-4 border-black bg-gradient-to-br from-gray-100 to-gray-300 shadow-neoHover flex items-center justify-center min-h-[200px] relative overflow-hidden cursor-grab active:cursor-grabbing">
+            <div class="viewer-3d w-full md:w-1/2 rounded-xl border border-[color:var(--border)] bg-steel-gradient flex items-center justify-center min-h-[200px] relative overflow-hidden cursor-grab active:cursor-grabbing">
               <model-viewer
                 v-if="selectedUnit.model3d_url"
                 :key="selectedUnit.id"
@@ -339,32 +355,30 @@ const exportCSV = () => {
                 style="background-color:transparent;"
               ></model-viewer>
               <img v-else-if="selectedUnit.img_url" :src="selectedUnit.img_url" class="w-full h-full object-cover" />
-              <span v-else class="text-gray-400 font-bold">No Visual</span>
-              <div v-if="selectedUnit.model3d_url" class="absolute top-2 left-2 bg-neoBlue text-white text-[8px] font-black px-2 py-0.5 border-2 border-black pointer-events-none">● LIVE 3D</div>
-              <div v-if="selectedUnit.model3d_url" class="absolute bottom-2 right-2 bg-black text-white text-[8px] font-black px-1 pointer-events-none">DRAG 360°</div>
+              <span v-else class="text-graphite-300 font-medium">No Visual</span>
+              <div v-if="selectedUnit.model3d_url" class="absolute top-2 left-2 bg-steel/90 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full pointer-events-none">● LIVE 3D</div>
+              <div v-if="selectedUnit.model3d_url" class="absolute bottom-2 right-2 bg-graphite-900/80 text-graphite-100 text-[9px] font-medium px-2 py-0.5 rounded-full pointer-events-none">DRAG 360°</div>
             </div>
             <div class="w-full md:w-1/2 flex flex-col gap-4 justify-center">
-              <div><p class="text-xs font-bold text-gray-500 uppercase">Kode Unik</p><p class="text-2xl font-black italic">{{ selectedUnit.code }}</p></div>
-              <div><p class="text-xs font-bold text-gray-500 uppercase">Jenis Alat Berat</p><p class="text-xl font-bold">{{ selectedUnit.jenis_alat_berat_nama || '—' }}</p></div>
+              <div><p class="label">Kode Unik</p><p class="text-2xl font-mono font-bold">{{ selectedUnit.code }}</p></div>
+              <div><p class="label">Jenis Alat Berat</p><p class="text-lg font-semibold">{{ selectedUnit.jenis_alat_berat_nama || '—' }}</p></div>
               <div>
-                <span :class="getStatusColor(selectedUnit.status)" class="px-3 py-1 border-2 border-black font-black text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] inline-block">
-                  Status: {{ selectedUnit.status }}
-                </span>
+                <span class="badge text-white" :style="{ backgroundColor: statusHex(selectedUnit.status), borderColor: statusHex(selectedUnit.status) }">Status: {{ selectedUnit.status }}</span>
               </div>
             </div>
           </div>
-          <div class="grid grid-cols-3 gap-4 border-t-4 border-black pt-6">
-            <div class="border-2 border-black p-4 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-              <p class="text-xs font-bold uppercase mb-1">Health Score</p>
-              <p class="text-3xl font-black">{{ selectedUnit.health }}%</p>
+          <div class="grid grid-cols-3 gap-4 border-t border-[color:var(--border)] pt-6">
+            <div class="panel-flat p-4 text-center">
+              <p class="label">Health Score</p>
+              <p class="text-3xl font-display font-bold" :style="{ color: statusHex(selectedUnit.status) }">{{ selectedUnit.health }}%</p>
             </div>
-            <div class="border-2 border-black p-4 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-              <p class="text-xs font-bold uppercase mb-1">Jadwal MTC</p>
-              <p class="text-lg font-black mt-2 leading-tight">{{ selectedUnit.maintenance }}</p>
+            <div class="panel-flat p-4 text-center">
+              <p class="label">Jadwal MTC</p>
+              <p class="text-base font-semibold mt-1 leading-tight">{{ selectedUnit.maintenance }}</p>
             </div>
-            <div class="border-2 border-black p-4 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-black text-white">
-              <p class="text-xs font-bold uppercase mb-1 text-gray-300">Est. Saving</p>
-              <p class="text-xl font-black mt-2" :class="selectedUnit.savings >= 0 ? 'text-miningYellow' : 'text-neoRed'">
+            <div class="p-4 text-center rounded-[10px] bg-steel-gradient text-white border border-[color:var(--border)]">
+              <p class="text-[10px] font-semibold uppercase tracking-wider text-graphite-300 mb-1">Est. Saving</p>
+              <p class="text-xl font-mono font-bold" :class="selectedUnit.savings >= 0 ? 'text-amber' : 'text-critical'">
                 {{ selectedUnit.savings >= 0 ? '+$' : '-$' }}{{ Math.abs(selectedUnit.savings).toLocaleString() }}
               </p>
             </div>
@@ -375,59 +389,59 @@ const exportCSV = () => {
 
     <!-- Form Modal -->
     <div v-if="isFormOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isFormOpen = false"></div>
-      <div class="bg-white border-4 border-black shadow-neo w-full max-w-lg relative z-10 flex flex-col max-h-[90vh] animate-[popup_0.2s_ease-out]">
-        <div class="flex justify-between items-center p-6 border-b-4 border-black" :class="formMode==='add' ? 'bg-emerald-400' : 'bg-white'">
-          <h3 class="text-2xl font-black uppercase">{{ formMode==='add' ? 'Tambah Unit' : 'Edit Unit' }}</h3>
-          <button @click="isFormOpen = false" class="bg-neoRed text-white border-2 border-black w-10 h-10 font-black hover:shadow-none transition-all">X</button>
+      <div class="modal-backdrop" @click="isFormOpen = false"></div>
+      <div class="modal-card w-full max-w-lg flex flex-col max-h-[90vh] anim-pop">
+        <div class="flex justify-between items-center px-6 py-4 border-b border-[color:var(--border)] bg-[color:var(--surface-2)]">
+          <h3 class="font-display text-2xl font-bold uppercase tracking-wide">{{ formMode==='add' ? 'Tambah Unit' : 'Edit Unit' }}</h3>
+          <button @click="isFormOpen = false" class="w-9 h-9 rounded-lg hover:bg-critical/15 hover:text-critical text-[color:var(--text-muted)] flex items-center justify-center transition-colors">✕</button>
         </div>
         <div class="p-6 overflow-y-auto flex flex-col gap-4">
-          <div v-if="formError" class="p-3 bg-neoRed text-white border-2 border-black font-bold text-sm">{{ formError }}</div>
+          <div v-if="formError" class="px-4 py-2.5 rounded-lg bg-critical/10 border border-critical/40 text-critical font-semibold text-sm">{{ formError }}</div>
           <div>
-            <label class="block text-sm font-black uppercase mb-2">Kode Unik <span class="text-neoRed">*</span></label>
-            <input v-model="formData.code" type="text" placeholder="Cth: EXC-320-05" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:bg-miningYellow/10 font-bold" />
+            <label class="label">Kode Unik <span class="text-critical">*</span></label>
+            <input v-model="formData.code" type="text" placeholder="Cth: EXC-320-05" class="field" />
           </div>
           <div>
-            <label class="block text-sm font-black uppercase mb-2">Jenis Alat Berat <span class="text-neoRed">*</span></label>
-            <select v-model="formData.jenis_alat_berat_id" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none font-bold appearance-none cursor-pointer">
+            <label class="label">Jenis Alat Berat <span class="text-critical">*</span></label>
+            <select v-model="formData.jenis_alat_berat_id" class="field cursor-pointer">
               <option value="">— Pilih Jenis —</option>
               <option v-for="j in jenisOptions" :key="j.id" :value="j.id">{{ j.nama }}</option>
             </select>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-black uppercase mb-2">Status</label>
-              <select v-model="formData.status" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none font-bold appearance-none cursor-pointer">
+              <label class="label">Status</label>
+              <select v-model="formData.status" class="field cursor-pointer">
                 <option v-for="s in statusOptions" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
             <div>
-              <label class="block text-sm font-black uppercase mb-2">Health (%)</label>
-              <input v-model.number="formData.health" type="number" min="0" max="100" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none font-bold" />
+              <label class="label">Health (%)</label>
+              <input v-model.number="formData.health" type="number" min="0" max="100" class="field" />
             </div>
           </div>
           <div>
-            <label class="block text-sm font-black uppercase mb-2">Jadwal Maintenance</label>
-            <input v-model="formData.maintenance" type="text" placeholder="Cth: 50 Jam Lagi" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none font-bold" />
+            <label class="label">Jadwal Maintenance</label>
+            <input v-model="formData.maintenance" type="text" placeholder="Cth: 50 Jam Lagi" class="field" />
           </div>
           <div>
-            <label class="block text-sm font-black uppercase mb-2">Est. Savings ($)</label>
-            <input v-model.number="formData.savings" type="number" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none font-bold" />
+            <label class="label">Est. Savings ($)</label>
+            <input v-model.number="formData.savings" type="number" class="field" />
           </div>
           <div>
-            <label class="block text-sm font-black uppercase mb-2">URL Gambar</label>
-            <input v-model="formData.img_url" type="text" placeholder="https://..." class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none font-bold text-sm" />
+            <label class="label">URL Gambar</label>
+            <input v-model="formData.img_url" type="text" placeholder="https://..." class="field text-sm" />
           </div>
           <div>
-            <label class="block text-sm font-black uppercase mb-2">URL Model 3D (.glb)</label>
-            <input v-model="formData.model3d_url" type="text" placeholder="https://....glb" class="w-full p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none font-bold text-sm" />
-            <p class="text-[10px] font-bold text-gray-500 mt-1">Format GLB untuk visual 3D unit. Kosongkan untuk pakai gambar biasa.</p>
+            <label class="label">URL Model 3D (.glb)</label>
+            <input v-model="formData.model3d_url" type="text" placeholder="https://....glb" class="field text-sm" />
+            <p class="text-[10px] text-[color:var(--text-faint)] mt-1.5">Format GLB untuk visual 3D unit. Kosongkan untuk pakai gambar biasa.</p>
           </div>
         </div>
-        <div class="p-6 border-t-4 border-black bg-gray-50 flex justify-end gap-4">
-          <button @click="isFormOpen = false" class="px-6 py-3 border-4 border-black bg-white font-black hover:bg-gray-200 transition-colors">BATAL</button>
-          <button @click="save" :disabled="formLoading" class="px-6 py-3 border-4 border-black bg-black text-white font-black shadow-[4px_4px_0px_0px_#FFCC00] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all disabled:opacity-60">
-            {{ formLoading ? 'MENYIMPAN...' : 'SIMPAN' }}
+        <div class="px-6 py-4 border-t border-[color:var(--border)] bg-[color:var(--surface-2)] flex justify-end gap-3">
+          <button @click="isFormOpen = false" class="btn btn-ghost px-6">Batal</button>
+          <button @click="save" :disabled="formLoading" class="btn btn-amber px-6 disabled:opacity-60">
+            {{ formLoading ? 'Menyimpan…' : 'Simpan' }}
           </button>
         </div>
       </div>
@@ -435,25 +449,35 @@ const exportCSV = () => {
 
     <!-- Export Modal -->
     <div v-if="isExportOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isExportOpen = false"></div>
-      <div class="bg-miningYellow border-4 border-black shadow-neo w-full max-w-md relative z-10 p-8 text-center animate-[popup_0.2s_ease-out]">
-        <h3 class="text-3xl font-black uppercase mb-4">Eksport Data</h3>
-        <p class="font-bold mb-8">Pilih format file untuk mengunduh data unit tambang.</p>
-        <div class="flex flex-col gap-4">
-          <button @click="exportCSV" class="w-full p-4 border-4 border-black bg-white font-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all flex justify-between items-center">
-            <span>Eksport sebagai CSV</span><span class="text-xl">📄</span>
-          </button>
+      <div class="modal-backdrop" @click="isExportOpen = false"></div>
+      <div class="modal-card w-full max-w-md p-8 text-center anim-pop">
+        <div class="w-14 h-14 rounded-2xl bg-amber/15 border border-amber/40 flex items-center justify-center mx-auto mb-4 text-amber">
+          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
         </div>
-        <button @click="isExportOpen = false" class="mt-8 underline font-bold hover:text-white transition-colors">Tutup</button>
+        <h3 class="font-display text-2xl font-bold uppercase tracking-wide mb-2">Ekspor Data</h3>
+        <p class="text-[color:var(--text-muted)] mb-6">Pilih format file untuk mengunduh data unit tambang.</p>
+        <button @click="exportCSV" class="btn btn-ghost w-full !py-4 justify-between">
+          <span class="font-semibold">Ekspor sebagai CSV</span>
+          <span class="text-xl">📄</span>
+        </button>
+        <button @click="isExportOpen = false" class="mt-5 text-sm font-semibold text-[color:var(--text-muted)] hover:text-amber transition-colors">Tutup</button>
       </div>
     </div>
 
   </div>
 </template>
 
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@900&family=Space+Mono:wght@400;700&display=swap');
-body { font-family: 'Space Mono', monospace; }
-h1,h2,h3,button,.font-black { font-family: 'Public Sans', sans-serif; font-weight: 900; }
-@keyframes popup { 0%{transform:scale(0.95) translateY(10px);opacity:0} 100%{transform:scale(1) translateY(0);opacity:1} }
+<style scoped>
+.pg-btn {
+  width: 2.25rem; height: 2.25rem;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 9px; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--text);
+  font-weight: 600; font-size: .85rem;
+  transition: all .15s ease;
+}
+.pg-btn:hover:not(:disabled) { background: var(--surface-3); border-color: var(--steel); }
+.pg-btn:disabled { opacity: .4; cursor: not-allowed; }
+.pg-active { background: var(--amber); border-color: var(--amber); color: #1b1206; }
+.pg-active:hover { background: var(--amber); }
 </style>

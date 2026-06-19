@@ -5,10 +5,12 @@
 </template>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;900&display=swap');
-
+/* Fonts & design tokens dimuat global via assets/css/animations.css */
 html {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   scroll-behavior: smooth;
+  background: var(--bg);
+  color: var(--text);
 }
+body { background: var(--bg); }
 </style>
