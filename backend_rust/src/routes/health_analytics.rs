@@ -220,6 +220,90 @@ const COMPONENTS: [&str; 6] = [
     "Kelistrikan",
 ];
 
+/// Komponen prediksi RUL multi-komponen (sesuai dataset industri alat berat).
+/// (label, nominal design-life jam)
+const RUL_COMPONENTS: [(&str, f64); 15] = [
+    ("Brake Pad (Rear Axle)", 3500.0),
+    ("Sistem Hidrolik", 12000.0),
+    ("Powertrain", 16000.0),
+    ("Brake Caliper", 9000.0),
+    ("Sistem Rem", 8000.0),
+    ("Sistem Kemudi", 11000.0),
+    ("Suspensi", 10000.0),
+    ("Pompa Hidrolik", 13000.0),
+    ("Main Bearing", 18000.0),
+    ("Turbocharger", 14000.0),
+    ("Transmisi", 17000.0),
+    ("Seal Pompa Utama", 7000.0),
+    ("Bearing Inner Race", 15000.0),
+    ("Turbo Impeller", 13500.0),
+    ("Brake Pad (Rear)", 3200.0),
+];
+
+fn rul_level(hours: f64) -> &'static str {
+    if hours < 250.0 {
+        "CRITICAL"
+    } else if hours < 700.0 {
+        "WARNING"
+    } else {
+        "OK"
+    }
+}
+
+/// Prediksi RUL untuk banyak komponen sekaligus (jam tersisa + tingkat urgensi).
+fn derive_rul_components(unit: &UnitTambang) -> Vec<serde_json::Value> {
+    let health = unit.health as f64;
+    let seed = code_seed(&unit.code);
+    let hfac = (health / 100.0).clamp(0.05, 1.0);
+    RUL_COMPONENTS
+        .iter()
+        .enumerate()
+        .map(|(i, (label, life))| {
+            let wob = 0.55 + frand(seed + 50.0 + i as f64) * 0.7; // variasi per komponen
+            let hours = (life * hfac * wob).round().max(20.0);
+            let conf = (74.0 + frand(seed + 80.0 + i as f64) * 22.0).round();
+            json!({
+                "component": label,
+                "hours_remaining": hours,
+                "level": rul_level(hours),
+                "confidence": conf,
+            })
+        })
+        .collect()
+}
+
+/// Parameter operasional & lingkungan (sesuai dataset: road grade, payload,
+/// cycle time, debu, kelembapan, vibrasi 3-axis, analisa oli, dsb).
+fn derive_operational(unit: &UnitTambang) -> serde_json::Value {
+    let health = unit.health as f64;
+    let seed = code_seed(&unit.code);
+    let t = time_bucket();
+    let degr = ((100.0 - health) / 100.0).clamp(0.0, 1.0);
+    json!({
+        "road_grade_pct": ((4.0 + frand(seed + t + 30.0) * 8.0) * 10.0).round() / 10.0,
+        "haul_distance_km": ((2.0 + frand(seed + t + 31.0) * 6.0) * 10.0).round() / 10.0,
+        "cycle_time_minutes": ((18.0 + frand(seed + t + 32.0) * 14.0) * 10.0).round() / 10.0,
+        "dust_concentration_mgm3": ((0.5 + frand(seed + t + 33.0) * 3.5) * 100.0).round() / 100.0,
+        "humidity_pct": (62.0 + frand(seed + t + 34.0) * 30.0).round(),
+        "days_since_last_pm": (frand(seed + 35.0) * 45.0).round(),
+        "last_maintenance_hours": (200.0 + frand(seed + 36.0) * 900.0).round(),
+        "oil_change_flag": frand(seed + 37.0) > 0.7,
+        "fuel_consumption_rate_lph": (35.0 + frand(seed + t + 38.0) * 45.0 + degr * 15.0).round(),
+        "boost_pressure_kpa": (180.0 + frand(seed + t + 39.0) * 60.0 - degr * 40.0).round(),
+        "exhaust_gas_temp_c": (380.0 + degr * 180.0 + (frand(seed + t + 40.0) - 0.5) * 30.0).round(),
+        "engine_oil_temp_c": (95.0 + degr * 30.0 + (frand(seed + t + 41.0) - 0.5) * 4.0).round(),
+        "coolant_pressure_kpa": (90.0 + frand(seed + t + 42.0) * 40.0 - degr * 20.0).round(),
+        "vibration_x_g": ((1.0 + degr * 5.0 + (frand(seed + t + 43.0) - 0.5) * 0.5) * 100.0).round() / 100.0,
+        "vibration_y_g": ((1.1 + degr * 5.2 + (frand(seed + t + 44.0) - 0.5) * 0.5) * 100.0).round() / 100.0,
+        "vibration_z_g": ((1.3 + degr * 6.0 + (frand(seed + t + 45.0) - 0.5) * 0.5) * 100.0).round() / 100.0,
+        "oil_viscosity_cst": ((14.0 - degr * 3.0 + (frand(seed + 46.0) - 0.5) * 0.6) * 10.0).round() / 10.0,
+        "oil_particle_count_iso": (13.0 + degr * 9.0 + (frand(seed + t + 47.0) - 0.5)).round(),
+        "oil_moisture_pct": ((0.03 + degr * 0.7) * 100.0).round() / 100.0,
+        "wear_metal_fe_ppm": (15.0 + degr * 130.0).round(),
+        "wear_metal_cu_ppm": (3.0 + degr * 40.0).round(),
+    })
+}
+
 /// Menurunkan satu paket analitik kesehatan dari sebuah unit.
 fn derive_unit_analysis(unit: &UnitTambang) -> serde_json::Value {
     let health = unit.health as f64;
@@ -335,6 +419,8 @@ fn derive_unit_analysis(unit: &UnitTambang) -> serde_json::Value {
         "shap_contributions": shap,
         "sensor_history": history,
         "telemetry": derive_telemetry(unit),
+        "rul_components": derive_rul_components(unit),
+        "operational": derive_operational(unit),
         "updated_at": now.to_rfc3339(),
     })
 }

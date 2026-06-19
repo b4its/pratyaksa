@@ -41,6 +41,8 @@ pub struct UnitTambang {
     pub savings: i64,
     pub img_url: Option<String>,
     pub model3d_url: Option<String>,
+    pub lat: Option<f64>,
+    pub lng: Option<f64>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -59,6 +61,8 @@ pub struct CreateUnitTambangRequest {
     pub savings: i64,
     pub img_url: Option<String>,
     pub model3d_url: Option<String>,
+    pub lat: Option<f64>,
+    pub lng: Option<f64>,
 }
 
 /// PUT /unit-tambang/:id
@@ -75,6 +79,8 @@ pub struct UpdateUnitTambangRequest {
     pub savings: Option<i64>,
     pub img_url: Option<String>,
     pub model3d_url: Option<String>,
+    pub lat: Option<f64>,
+    pub lng: Option<f64>,
 }
 
 /// Query params

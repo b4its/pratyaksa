@@ -26,7 +26,7 @@ interface JenisAlatBerat {
 const items = ref<JenisAlatBerat[]>([])
 const total = ref(0)
 const currentPage = ref(1)
-const perPage = 10
+const perPage = 5
 const searchQuery = ref('')
 const isLoading = ref(false)
 const errorMsg = ref('')
@@ -43,8 +43,9 @@ const formLoading = ref(false)
 const isDetailOpen = ref(false)
 const selectedItem = ref<JenisAlatBerat | null>(null)
 
-// ---- Auth ----
+// ---- Auth & Theme ----
 const { initAuth, user } = useAuth()
+const { isDark, toggleTheme, initTheme } = useTheme()
 const api = useApi()
 
 // ---- Fetch ----
@@ -67,6 +68,7 @@ const fetchData = async () => {
 }
 
 onMounted(() => {
+  initTheme()
   initAuth()
   fetchData()
 })
@@ -136,10 +138,10 @@ const formatDate = (iso: string) => new Date(iso).toLocaleDateString('id-ID', { 
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-mesh text-[color:var(--text)]">
+  <div class="flex h-screen overflow-hidden bg-mesh text-[color:var(--text)]">
 
     <!-- Sidebar -->
-    <aside class="w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)] p-5 flex flex-col justify-between z-10 shrink-0">
+    <aside class="w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)] p-5 flex flex-col justify-between z-10 shrink-0 h-screen overflow-y-auto">
       <div>
         <div class="flex items-center gap-3 mb-9 px-1">
           <div class="w-11 h-11 rounded-xl bg-amber-gradient flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(242,166,12,0.7)]">
@@ -159,11 +161,21 @@ const formatDate = (iso: string) => new Date(iso).toLocaleDateString('id-ID', { 
           </NuxtLink>
         </nav>
       </div>
-      <div class="panel-flat p-4">
-        <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)]">Logged in as</p>
-        <div class="flex items-center gap-3 mt-2">
-          <div class="w-9 h-9 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-sm">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
-          <p class="font-semibold text-sm truncate">{{ user?.name || 'Admin' }}</p>
+      <div class="space-y-2">
+        <button @click="toggleTheme" class="theme-toggle" aria-label="Ganti tema">
+          <span class="flex items-center gap-2.5 font-semibold text-sm">
+            <svg v-if="isDark" class="w-4 h-4 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+            <svg v-else class="w-4 h-4 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            {{ isDark ? 'Mode Gelap' : 'Mode Terang' }}
+          </span>
+          <span class="tt-switch" :class="{ 'tt-on': isDark }"><span class="tt-knob"></span></span>
+        </button>
+        <div class="panel-flat p-4">
+          <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)]">Logged in as</p>
+          <div class="flex items-center gap-3 mt-2">
+            <div class="w-9 h-9 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-sm">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
+            <p class="font-semibold text-sm truncate">{{ user?.name || 'Admin' }}</p>
+          </div>
         </div>
       </div>
     </aside>

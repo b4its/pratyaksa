@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 
 // Muat web component <model-viewer> (Google) untuk render GLB
 useHead({
@@ -44,6 +44,8 @@ interface UnitAnalysis {
   shap_contributions: { feature: string; value: number }[]
   sensor_history: { time: string; suhu_mesin: number; vibration: number; tekanan_oli: number; acoustic: number }[]
   telemetry: Telemetry
+  rul_components: { component: string; hours_remaining: number; level: string; confidence: number }[]
+  operational: Record<string, number | boolean>
   updated_at: string
 }
 interface Telemetry {
@@ -69,6 +71,7 @@ const autoRefresh = ref(true)
 const lastUpdate = ref('')
 
 const { initAuth, user } = useAuth()
+const { isDark, toggleTheme, initTheme } = useTheme()
 const api = useApi()
 let ChartLib: any = null
 let refreshTimer: any = null
@@ -86,6 +89,16 @@ const statusColor = (s: string) => ({
 
 const selectedUnit = computed(() =>
   overview.value?.units.find(u => u.id === selectedUnitId.value) || null)
+
+// Pagination daftar "Pilih Unit" (agar tidak memanjang ke bawah)
+const unitListPage = ref(1)
+const unitListPerPage = 6
+const unitListTotalPages = computed(() => Math.max(1, Math.ceil((overview.value?.units.length || 0) / unitListPerPage)))
+const pagedUnitList = computed(() => {
+  const arr = overview.value?.units || []
+  const start = (unitListPage.value - 1) * unitListPerPage
+  return arr.slice(start, start + unitListPerPage)
+})
 
 // --- FETCH ---
 const fetchOverview = async () => {
@@ -150,6 +163,110 @@ const upsertChart = (key: string, canvasId: string, config: any) => {
 const labelFont = { family: 'Inter', weight: 'bold' as const }
 const monoFont = { family: 'JetBrains Mono' }
 
+// Plugin: tampilkan angka pada tiap arc doughnut (selalu terlihat, bukan hanya saat hover)
+const arcValueLabel = {
+  id: 'arcValueLabel',
+  afterDatasetsDraw(chart: any) {
+    const { ctx } = chart
+    const meta = chart.getDatasetMeta(0)
+    const ds = chart.data.datasets[0]
+    if (!meta || !meta.data) return
+    meta.data.forEach((arc: any, i: number) => {
+      const val = ds.data[i]
+      if (val == null || val === 0) return
+      const pos = arc.tooltipPosition()
+      ctx.save()
+      ctx.font = '800 14px Inter, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.shadowColor = 'rgba(0,0,0,0.55)'
+      ctx.shadowBlur = 4
+      ctx.fillStyle = '#ffffff'
+      ctx.fillText(String(val), pos.x, pos.y)
+      ctx.restore()
+    })
+  },
+}
+
+// Plugin: tampilkan angka di atas tiap batang bar
+const barValueLabel = {
+  id: 'barValueLabel',
+  afterDatasetsDraw(chart: any) {
+    const { ctx } = chart
+    const meta = chart.getDatasetMeta(0)
+    const ds = chart.data.datasets[0]
+    if (!meta || !meta.data) return
+    const tickColor = css('--text') || '#1b2128'
+    meta.data.forEach((bar: any, i: number) => {
+      const val = ds.data[i]
+      if (val == null) return
+      ctx.save()
+      ctx.font = '800 13px JetBrains Mono, monospace'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'bottom'
+      ctx.fillStyle = tickColor
+      ctx.fillText(String(val), bar.x, bar.y - 6)
+      ctx.restore()
+    })
+  },
+}
+
+// Plugin: nilai di ujung kanan tiap bar horizontal (RUL multi-komponen)
+const barValueLabelH = {
+  id: 'barValueLabelH',
+  afterDatasetsDraw(chart: any) {
+    const { ctx } = chart
+    const meta = chart.getDatasetMeta(0)
+    const ds = chart.data.datasets[0]
+    if (!meta || !meta.data) return
+    const col = css('--text-muted') || '#5d6b7a'
+    meta.data.forEach((bar: any, i: number) => {
+      const val = ds.data[i]
+      if (val == null) return
+      ctx.save()
+      ctx.font = '700 10px JetBrains Mono, monospace'
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = col
+      ctx.fillText(`${val}j`, bar.x + 6, bar.y)
+      ctx.restore()
+    })
+  },
+}
+
+const rulColor = (l: string) => ({ CRITICAL: '#E0413E', WARNING: '#E0A106', OK: '#1FA971' }[l] || '#7A848E')
+
+// Parameter operasional & lingkungan (dari dataset industri)
+const operationalFields = [
+  { k: 'road_grade_pct', l: 'Road Grade', u: '%' },
+  { k: 'haul_distance_km', l: 'Jarak Angkut', u: ' km' },
+  { k: 'cycle_time_minutes', l: 'Cycle Time', u: ' min' },
+  { k: 'dust_concentration_mgm3', l: 'Konsentrasi Debu', u: ' mg/m³' },
+  { k: 'humidity_pct', l: 'Kelembapan', u: '%' },
+  { k: 'days_since_last_pm', l: 'Hari sejak PM', u: ' hari' },
+  { k: 'last_maintenance_hours', l: 'Jam sejak MTC', u: ' h' },
+  { k: 'fuel_consumption_rate_lph', l: 'Konsumsi BBM', u: ' L/h' },
+  { k: 'boost_pressure_kpa', l: 'Boost Pressure', u: ' kPa' },
+  { k: 'exhaust_gas_temp_c', l: 'Suhu Gas Buang', u: '°C' },
+  { k: 'engine_oil_temp_c', l: 'Suhu Oli Mesin', u: '°C' },
+  { k: 'coolant_pressure_kpa', l: 'Tekanan Coolant', u: ' kPa' },
+  { k: 'vibration_x_g', l: 'Vibrasi X', u: ' g' },
+  { k: 'vibration_y_g', l: 'Vibrasi Y', u: ' g' },
+  { k: 'vibration_z_g', l: 'Vibrasi Z', u: ' g' },
+  { k: 'oil_viscosity_cst', l: 'Viskositas Oli', u: ' cSt' },
+  { k: 'oil_particle_count_iso', l: 'Partikel Oli', u: ' ISO' },
+  { k: 'oil_moisture_pct', l: 'Moisture Oli', u: '%' },
+  { k: 'wear_metal_fe_ppm', l: 'Wear Metal Fe', u: ' ppm' },
+  { k: 'wear_metal_cu_ppm', l: 'Wear Metal Cu', u: ' ppm' },
+]
+
+const urgentComponents = computed(() => {
+  if (!analysis.value) return []
+  return [...analysis.value.rul_components]
+    .sort((a, b) => a.hours_remaining - b.hours_remaining)
+    .slice(0, 3)
+})
+
 const renderOverviewCharts = () => {
   if (!overview.value) return
   const t = theme()
@@ -166,6 +283,7 @@ const renderOverviewCharts = () => {
         borderColor: t.surface, borderWidth: 3,
       }],
     },
+    plugins: [arcValueLabel],
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '60%',
       plugins: { legend: { position: 'bottom', labels: { font: labelFont, color: t.tick, boxWidth: 12, usePointStyle: true } } },
@@ -184,6 +302,7 @@ const renderOverviewCharts = () => {
         borderRadius: 6, borderSkipped: false,
       }],
     },
+    plugins: [barValueLabel],
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
@@ -313,12 +432,40 @@ const renderUnitCharts = () => {
       },
     },
   })
+
+  // Prediksi RUL multi-komponen (horizontal bar, urut paling mendesak)
+  const rc = [...analysis.value.rul_components].sort((a, b) => a.hours_remaining - b.hours_remaining)
+  upsertChart('rulComponents', 'rulComponents', {
+    type: 'bar',
+    data: {
+      labels: rc.map(c => c.component),
+      datasets: [{
+        data: rc.map(c => c.hours_remaining),
+        backgroundColor: rc.map(c => rulColor(c.level)),
+        borderRadius: 5, borderSkipped: false,
+      }],
+    },
+    plugins: [barValueLabelH],
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      layout: { padding: { right: 36 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c: any) => `${c.raw} jam tersisa` } },
+      },
+      scales: {
+        x: { beginAtZero: true, ticks: { font: { family: 'JetBrains Mono', size: 9 }, color: t.tick }, grid: { color: t.grid }, border: { color: t.axis } },
+        y: { ticks: { font: { family: 'Inter', size: 10, weight: 'bold' }, color: t.text }, grid: { display: false }, border: { color: t.axis } },
+      },
+    },
+  })
 }
 
 const renderAllCharts = () => { renderOverviewCharts(); renderUnitCharts() }
 
 // --- LIFECYCLE ---
 onMounted(async () => {
+  initTheme()
   initAuth()
   isLoading.value = true
   if (typeof window !== 'undefined') {
@@ -341,6 +488,9 @@ onUnmounted(() => {
   Object.values(charts).forEach(c => c?.destroy())
 })
 
+// Re-render chart dengan warna tema baru saat dark/light di-toggle
+watch(isDark, () => { nextTick(() => renderAllCharts()) })
+
 const fmtHours = (h: number) => {
   if (h >= 24) return `${Math.floor(h / 24)} hari ${Math.round(h % 24)} jam`
   return `${Math.round(h)} jam`
@@ -352,9 +502,9 @@ const statusLabelColor = (s: string) => ({
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-mesh text-[color:var(--text)]">
+  <div class="flex h-screen overflow-hidden bg-mesh text-[color:var(--text)]">
     <!-- Sidebar -->
-    <aside class="w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)] p-5 flex flex-col justify-between z-10 shrink-0">
+    <aside class="w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)] p-5 flex flex-col justify-between z-10 shrink-0 h-screen overflow-y-auto">
       <div>
         <div class="flex items-center gap-3 mb-9 px-1">
           <div class="w-11 h-11 rounded-xl bg-amber-gradient flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(242,166,12,0.7)]">
@@ -373,11 +523,21 @@ const statusLabelColor = (s: string) => ({
           </NuxtLink>
         </nav>
       </div>
-      <div class="panel-flat p-4">
-        <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)]">Logged in as</p>
-        <div class="flex items-center gap-3 mt-2">
-          <div class="w-9 h-9 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-sm">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
-          <p class="font-semibold text-sm truncate">{{ user?.name || 'Admin' }}</p>
+      <div class="space-y-2">
+        <button @click="toggleTheme" class="theme-toggle" aria-label="Ganti tema">
+          <span class="flex items-center gap-2.5 font-semibold text-sm">
+            <svg v-if="isDark" class="w-4 h-4 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+            <svg v-else class="w-4 h-4 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            {{ isDark ? 'Mode Gelap' : 'Mode Terang' }}
+          </span>
+          <span class="tt-switch" :class="{ 'tt-on': isDark }"><span class="tt-knob"></span></span>
+        </button>
+        <div class="panel-flat p-4">
+          <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)]">Logged in as</p>
+          <div class="flex items-center gap-3 mt-2">
+            <div class="w-9 h-9 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-sm">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
+            <p class="font-semibold text-sm truncate">{{ user?.name || 'Admin' }}</p>
+          </div>
         </div>
       </div>
     </aside>
@@ -445,12 +605,12 @@ const statusLabelColor = (s: string) => ({
         </div>
 
         <!-- Unit list + detail -->
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
           <!-- Unit list -->
-          <div class="lg:col-span-1 panel p-4 h-fit">
+          <div class="lg:col-span-1 panel p-4 lg:sticky lg:top-0">
             <h2 class="font-display text-lg font-bold uppercase tracking-wide mb-4 pb-2 border-b border-[color:var(--border)]">Pilih Unit</h2>
-            <div class="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-              <button v-for="u in overview.units" :key="u.id" @click="selectUnit(u.id)"
+            <div class="space-y-2">
+              <button v-for="u in pagedUnitList" :key="u.id" @click="selectUnit(u.id)"
                 :class="selectedUnitId === u.id ? 'border-amber bg-amber/10' : 'border-[color:var(--border)] hover:border-steel hover:bg-[color:var(--surface-2)]'"
                 class="w-full text-left p-3 rounded-lg border transition-all">
                 <div class="flex justify-between items-center">
@@ -462,6 +622,13 @@ const statusLabelColor = (s: string) => ({
                   <span class="text-[11px] font-mono font-semibold">Risk {{ u.risk_score }}</span>
                 </div>
               </button>
+            </div>
+            <div v-if="unitListTotalPages > 1" class="flex items-center justify-between mt-3 pt-3 border-t border-[color:var(--border)]">
+              <span class="text-[11px] font-medium text-[color:var(--text-faint)]">Hal {{ unitListPage }} / {{ unitListTotalPages }}</span>
+              <div class="flex gap-1.5">
+                <button @click="unitListPage = Math.max(1, unitListPage - 1)" :disabled="unitListPage === 1" class="mini-pg">‹</button>
+                <button @click="unitListPage = Math.min(unitListTotalPages, unitListPage + 1)" :disabled="unitListPage === unitListTotalPages" class="mini-pg">›</button>
+              </div>
             </div>
           </div>
 
@@ -624,6 +791,41 @@ const statusLabelColor = (s: string) => ({
                 <div class="rounded-[10px] p-3 text-center bg-steel-gradient text-white">
                   <p class="text-[9px] font-semibold uppercase tracking-wider text-graphite-300">RUL (Telemetri)</p>
                   <p class="text-xl font-display font-bold text-amber">{{ fmtHours(analysis.telemetry.rul_hours) }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Prediksi RUL Multi-Komponen -->
+            <div class="panel p-6">
+              <div class="flex justify-between items-center mb-4 pb-2 border-b border-[color:var(--border)] flex-wrap gap-2">
+                <h3 class="font-display text-lg font-bold uppercase tracking-wide">Prediksi RUL Multi-Komponen</h3>
+                <span class="text-[10px] text-[color:var(--text-faint)]">{{ analysis.rul_components.length }} komponen diprediksi</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                <div v-for="c in urgentComponents" :key="c.component" class="rounded-xl p-4 border"
+                  :style="{ borderColor: rulColor(c.level) + '66', background: rulColor(c.level) + '14' }">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-[10px] font-bold uppercase tracking-wide" :style="{ color: rulColor(c.level) }">{{ c.level }}</span>
+                    <span class="text-[10px] text-[color:var(--text-faint)]">conf {{ c.confidence }}%</span>
+                  </div>
+                  <p class="font-semibold text-sm leading-tight">{{ c.component }}</p>
+                  <p class="font-display text-2xl font-bold mt-1" :style="{ color: rulColor(c.level) }">{{ fmtHours(c.hours_remaining) }}</p>
+                </div>
+              </div>
+              <div class="h-[420px]"><canvas id="rulComponents"></canvas></div>
+            </div>
+
+            <!-- Parameter Operasional & Lingkungan -->
+            <div class="panel p-6">
+              <h3 class="font-display text-lg font-bold uppercase tracking-wide mb-4 pb-2 border-b border-[color:var(--border)]">Parameter Operasional &amp; Lingkungan</h3>
+              <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                <div v-for="f in operationalFields" :key="f.k" class="cell">
+                  <p class="cell-label">{{ f.l }}</p>
+                  <p class="cell-val text-base">{{ analysis.operational[f.k] }}{{ f.u }}</p>
+                </div>
+                <div class="cell">
+                  <p class="cell-label">Oil Change Flag</p>
+                  <p class="cell-val text-base">{{ analysis.operational.oil_change_flag ? 'YA' : 'TIDAK' }}</p>
                 </div>
               </div>
             </div>

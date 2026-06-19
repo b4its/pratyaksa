@@ -170,8 +170,8 @@ pub async fn create(
     let item = sqlx::query_as::<_, UnitTambang>(
         r#"
         WITH inserted AS (
-            INSERT INTO unit_tambang (id, code, jenis_alat_berat_id, status, health, maintenance, savings, img_url, model3d_url, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+            INSERT INTO unit_tambang (id, code, jenis_alat_berat_id, status, health, maintenance, savings, img_url, model3d_url, lat, lng, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
             RETURNING *
         )
         SELECT i.*, j.nama as jenis_alat_berat_nama
@@ -188,6 +188,8 @@ pub async fn create(
     .bind(body.savings)
     .bind(&body.img_url)
     .bind(&body.model3d_url)
+    .bind(body.lat)
+    .bind(body.lng)
     .fetch_one(&db.pool)
     .await?;
 
@@ -262,6 +264,8 @@ pub async fn update(
     let savings = body.savings.unwrap_or(existing.savings);
     let img_url = body.img_url.clone().or(existing.img_url);
     let model3d_url = body.model3d_url.clone().or(existing.model3d_url);
+    let lat = body.lat.or(existing.lat);
+    let lng = body.lng.or(existing.lng);
 
     let item = sqlx::query_as::<_, UnitTambang>(
         r#"
@@ -269,8 +273,8 @@ pub async fn update(
             UPDATE unit_tambang
             SET code = $1, jenis_alat_berat_id = $2, status = $3, health = $4,
                 maintenance = $5, savings = $6, img_url = $7, model3d_url = $8,
-                updated_at = NOW()
-            WHERE id = $9
+                lat = $9, lng = $10, updated_at = NOW()
+            WHERE id = $11
             RETURNING *
         )
         SELECT u.*, j.nama as jenis_alat_berat_nama
@@ -286,6 +290,8 @@ pub async fn update(
     .bind(savings)
     .bind(&img_url)
     .bind(&model3d_url)
+    .bind(lat)
+    .bind(lng)
     .bind(id)
     .fetch_one(&db.pool)
     .await?;

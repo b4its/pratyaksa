@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen text-[color:var(--text)] bg-[color:var(--bg)] selection:bg-amber selection:text-graphite-900 font-sans transition-colors duration-500 overflow-x-hidden">
+  <div class="min-h-screen text-[color:var(--text)] bg-[color:var(--bg)] selection:bg-amber selection:text-graphite-900 font-sans transition-colors duration-500 overflow-x-clip">
 
     <!-- NAV -->
     <nav class="sticky top-0 z-50 bg-[color:var(--surface)]/85 backdrop-blur-md border-b border-[color:var(--border)] px-6 py-3.5 flex justify-between items-center w-full transition-colors duration-500">
@@ -32,8 +32,21 @@
           <svg v-if="!isDark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
           <svg v-else class="w-5 h-5 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
         </button>
-        <NuxtLink to="account/login" class="btn btn-ghost px-6">Masuk</NuxtLink>
-        <NuxtLink to="account/register" class="btn btn-amber px-6">Daftar Gratis</NuxtLink>
+
+        <template v-if="isAuthenticated">
+          <div class="flex items-center gap-2.5 pl-1 pr-3 py-1.5 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)]">
+            <div class="w-8 h-8 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-xs">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
+            <span class="font-semibold text-sm max-w-[120px] truncate">{{ user?.name || 'Operator' }}</span>
+          </div>
+          <NuxtLink to="panel/dashboard" class="btn btn-amber px-6">Buka Dashboard →</NuxtLink>
+          <button @click="logout" aria-label="Keluar" class="btn btn-ghost !p-2.5" title="Keluar">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          </button>
+        </template>
+        <template v-else>
+          <NuxtLink to="account/login" class="btn btn-ghost px-6">Masuk</NuxtLink>
+          <NuxtLink to="account/register" class="btn btn-amber px-6">Daftar Gratis</NuxtLink>
+        </template>
       </div>
     </nav>
 
@@ -43,8 +56,18 @@
       <a href="#solusi" @click="toggleMenu" class="py-3 border-b border-[color:var(--border)] hover:text-amber transition-colors">Solusi Pratyaksa</a>
       <a href="#keunggulan" @click="toggleMenu" class="py-3 border-b border-[color:var(--border)] hover:text-amber transition-colors">Keunggulan</a>
       <div class="mt-6 flex flex-col gap-3">
-        <NuxtLink to="account/login" class="btn btn-ghost w-full !py-3.5">Masuk</NuxtLink>
-        <NuxtLink to="account/register" class="btn btn-amber w-full !py-3.5">Daftar Gratis</NuxtLink>
+        <template v-if="isAuthenticated">
+          <div class="flex items-center gap-3 p-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)]">
+            <div class="w-9 h-9 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-sm">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
+            <span class="font-semibold truncate">{{ user?.name || 'Operator' }}</span>
+          </div>
+          <NuxtLink to="panel/dashboard" @click="toggleMenu" class="btn btn-amber w-full !py-3.5">Buka Dashboard →</NuxtLink>
+          <button @click="logout(); toggleMenu()" class="btn btn-ghost w-full !py-3.5">Keluar</button>
+        </template>
+        <template v-else>
+          <NuxtLink to="account/login" @click="toggleMenu" class="btn btn-ghost w-full !py-3.5">Masuk</NuxtLink>
+          <NuxtLink to="account/register" @click="toggleMenu" class="btn btn-amber w-full !py-3.5">Daftar Gratis</NuxtLink>
+        </template>
       </div>
     </div>
 
@@ -71,7 +94,8 @@
             Pratyaksa mengintegrasikan IoT dan Machine Learning untuk memprediksi kerusakan alat berat dan mengotomatisasi keputusan operasional secara real-time.
           </p>
           <div class="flex flex-col sm:flex-row gap-4">
-            <NuxtLink to="account/register" class="btn btn-amber !py-4 px-8 text-base">Mulai Sekarang →</NuxtLink>
+            <NuxtLink v-if="isAuthenticated" to="panel/dashboard" class="btn btn-amber !py-4 px-8 text-base">Buka Dashboard →</NuxtLink>
+            <NuxtLink v-else to="account/register" class="btn btn-amber !py-4 px-8 text-base">Mulai Sekarang →</NuxtLink>
             <a href="#solusi" class="btn !py-4 px-8 text-base bg-white/10 text-white border border-white/20 hover:bg-white/15 backdrop-blur-sm">Lihat Solusi</a>
           </div>
         </div>
@@ -251,7 +275,8 @@
       <div class="absolute top-0 left-0 w-full h-1 hazard-stripe opacity-80"></div>
       <div v-reveal class="max-w-4xl mx-auto relative z-10">
         <h2 class="font-display text-4xl md:text-6xl font-bold uppercase mb-10 tracking-wide leading-tight">Tingkatkan Efektivitas Tambang Anda Sekarang</h2>
-        <NuxtLink to="account/register" class="btn btn-amber !py-5 px-10 text-xl md:text-2xl">Ayo Bergabung Bersama Kami</NuxtLink>
+        <NuxtLink v-if="isAuthenticated" to="panel/dashboard" class="btn btn-amber !py-5 px-10 text-xl md:text-2xl">Buka Dashboard →</NuxtLink>
+        <NuxtLink v-else to="account/register" class="btn btn-amber !py-5 px-10 text-xl md:text-2xl">Ayo Bergabung Bersama Kami</NuxtLink>
       </div>
     </footer>
   </div>
@@ -259,6 +284,9 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+
+// Status autentikasi — untuk menyesuaikan tampilan landing bila sudah login
+const { isAuthenticated, user, initAuth, logout } = useAuth()
 
 // Muat web component model-viewer
 useHead({
@@ -320,6 +348,7 @@ let statsObs = null
 
 onMounted(() => {
   isMounted.value = true
+  initAuth()
   const savedTheme = localStorage.getItem('theme')
   const osPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
   isDark.value = savedTheme === 'dark' || (!savedTheme && osPrefersDark)

@@ -285,6 +285,44 @@ html {
 /* Divider */
 .hr-soft { height: 1px; background: var(--border); border: 0; }
 
+/* Theme toggle (sidebar) */
+.theme-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; gap: .75rem;
+  padding: .65rem .85rem; border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  transition: border-color .18s ease, background-color .18s ease;
+  cursor: pointer;
+}
+.theme-toggle:hover { border-color: var(--amber); }
+.tt-switch {
+  position: relative; flex-shrink: 0;
+  width: 38px; height: 20px; border-radius: 999px;
+  background: var(--border-strong);
+  transition: background-color .25s ease;
+}
+.tt-switch.tt-on { background: var(--amber); }
+.tt-knob {
+  position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 2px 5px rgba(0,0,0,.3);
+  transition: transform .25s cubic-bezier(.34,1.4,.64,1);
+}
+.tt-switch.tt-on .tt-knob { transform: translateX(18px); }
+
+/* Mini pagination (dipakai grid/daftar di panel) */
+.mini-pg {
+  width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--text); font-weight: 700; font-size: .9rem;
+  transition: all .15s ease;
+}
+.mini-pg:hover:not(:disabled) { background: var(--amber); border-color: var(--amber); color: #1b1206; }
+.mini-pg:disabled { opacity: .4; cursor: not-allowed; }
+
 /* ============================================================
    PAGE TRANSITION
    ============================================================ */
@@ -379,11 +417,68 @@ html {
 .animate-marquee { width: max-content; animation: marquee 26s linear infinite; }
 .animate-marquee:hover { animation-play-state: paused; }
 
-/* ---- Leaflet popup re-skin ---- */
-.leaflet-container { z-index: 1 !important; font-family: 'Inter', sans-serif; }
-.custom-leaflet-popup .leaflet-popup-content-wrapper { background: transparent; box-shadow: none; padding: 0; }
-.custom-leaflet-popup .leaflet-popup-content { margin: 0; width: auto !important; }
-.custom-leaflet-popup .leaflet-popup-tip { display: none; }
+/* ===== Peta Leaflet — UI modern, kesan topografi 3D (global) ===== */
+.leaflet-container { background: var(--surface-3); font-family: 'Inter', sans-serif; }
+
+/* Filter gelap untuk tile saat dark mode */
+.map-dark .leaflet-tile-pane {
+  filter: brightness(0.7) contrast(1.08) saturate(0.85) hue-rotate(6deg);
+}
+
+/* Sheen + vignette → kesan kedalaman 3D */
+.map-depth {
+  border-radius: inherit;
+  box-shadow: inset 0 2px 16px rgba(0,0,0,0.18), inset 0 -60px 70px -40px rgba(0,0,0,0.5);
+  background: linear-gradient(to bottom, rgba(255,255,255,0.07), transparent 16%);
+}
+
+/* Kontrol zoom modern */
+.leaflet-control-zoom { border: none !important; box-shadow: var(--shadow-sm) !important; border-radius: 10px !important; overflow: hidden; }
+.leaflet-control-zoom a {
+  background: var(--surface) !important; color: var(--text) !important;
+  border: 1px solid var(--border) !important; width: 34px; height: 34px; line-height: 32px;
+  font-size: 18px; font-weight: 700; transition: background-color .15s ease, color .15s ease;
+}
+.leaflet-control-zoom a:hover { background: var(--amber) !important; color: #1b1206 !important; }
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--surface) 80%, transparent) !important;
+  color: var(--text-faint) !important; font-size: 10px !important; border-radius: 8px 0 0 0;
+  backdrop-filter: blur(6px);
+}
+.leaflet-control-attribution a { color: var(--text-muted) !important; }
+
+/* Marker armada (pin + pulse) */
+.fleet-marker { position: relative; }
+.fleet-pulse {
+  position: absolute; left: 50%; top: 18px; transform: translate(-50%, -50%);
+  width: 26px; height: 26px; border-radius: 50%; opacity: .55;
+  animation: fleetPulse 1.8s ease-out infinite;
+}
+@keyframes fleetPulse {
+  0% { transform: translate(-50%,-50%) scale(0.6); opacity: .55; }
+  100% { transform: translate(-50%,-50%) scale(2.4); opacity: 0; }
+}
+.fleet-dot {
+  position: absolute; left: 50%; top: 18px; transform: translate(-50%, -50%);
+  width: 28px; height: 28px; border-radius: 50% 50% 50% 0; rotate: 45deg;
+  border: 2px solid #fff; box-shadow: 0 6px 14px -3px rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 800; font-size: 12px;
+}
+.fleet-dot > * { rotate: -45deg; }
+.fleet-label {
+  position: absolute; left: 50%; top: 36px; transform: translateX(-50%);
+  background: #171d24; color: #fff; font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px;
+  white-space: nowrap; box-shadow: 0 4px 10px -2px rgba(0,0,0,0.45);
+}
+
+/* Popup modern */
+.modern-popup .leaflet-popup-content-wrapper {
+  background: transparent; box-shadow: 0 18px 40px -14px rgba(0,0,0,0.5); padding: 0; border-radius: 12px;
+}
+.modern-popup .leaflet-popup-content { margin: 0; width: auto !important; }
+.modern-popup .leaflet-popup-tip { background: var(--surface); }
 
 /* ---- Scrollbar (industrial) ---- */
 ::-webkit-scrollbar { width: 10px; height: 10px; }

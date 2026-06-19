@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 
 // Muat web component <model-viewer> (Google) untuk render GLB
 useHead({
@@ -30,6 +30,8 @@ interface UnitTambang {
   savings: number
   img_url: string | null
   model3d_url: string | null
+  lat: number | null
+  lng: number | null
   created_at: string
   updated_at: string
 }
@@ -40,7 +42,7 @@ interface JenisOption { id: string; nama: string }
 const units = ref<UnitTambang[]>([])
 const total = ref(0)
 const currentPage = ref(1)
-const perPage = 10
+const perPage = 5
 const searchQuery = ref('')
 const filterStatus = ref('')
 const isLoading = ref(false)
@@ -60,8 +62,85 @@ const formError = ref('')
 const formLoading = ref(false)
 const isExportOpen = ref(false)
 
+// ---- Model 3D: mode link atau upload file ----
+const model3dMode = ref<'link' | 'upload'>('link')
+const modelUploading = ref(false)
+const modelFileName = ref('')
+
+const onModelFileChange = async (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  const name = file.name.toLowerCase()
+  if (!name.endsWith('.glb') && !name.endsWith('.gltf')) {
+    formError.value = 'Format model harus .glb atau .gltf.'
+    return
+  }
+  modelUploading.value = true
+  formError.value = ''
+  try {
+    const res = await api.uploadModel(file) as any
+    formData.value.model3d_url = res.url
+    modelFileName.value = res.filename || file.name
+  } catch (err: any) {
+    formError.value = err?.data?.statusMessage || err?.statusMessage || 'Gagal mengunggah model.'
+  } finally {
+    modelUploading.value = false
+  }
+}
+
 const { initAuth, user } = useAuth()
+const { isDark, toggleTheme, initTheme } = useTheme()
+const { createMap } = useFleetMap()
 const api = useApi()
+
+// ---- Peta sebaran sensor (koordinat riil unit) ----
+let sensorMap: any = null
+let sensorFullMap: any = null
+const isMapFullscreen = ref(false)
+const mapUnitCount = ref(0)
+const levelFor = (s: string) => ({ SEHAT: 'L', WARNING: 'H', CRITICAL: 'I', RUSAK: 'X' }[s] || 'L')
+
+const buildLocations = async () => {
+  const res = await api.getUnitTambang({ per_page: 100 }) as any
+  return (res.data.data as any[])
+    .filter((u) => u.lat != null && u.lng != null)
+    .map((u) => ({
+      unit: u.code,
+      unit_type: u.jenis_alat_berat_nama || 'Heavy Equipment',
+      status: u.status,
+      color_hex: statusHex(u.status),
+      level: levelFor(u.status),
+      lat: u.lat,
+      lng: u.lng,
+      health: u.health,
+    }))
+}
+
+const loadSensorMap = async () => {
+  try {
+    const locs = await buildLocations()
+    mapUnitCount.value = locs.length
+    await nextTick()
+    if (sensorMap) { sensorMap.remove(); sensorMap = null }
+    sensorMap = await createMap('sensor-map', locs as any, { dark: isDark.value })
+  } catch { /* ignore */ }
+}
+
+const openMapFullscreen = async () => {
+  isMapFullscreen.value = true
+  const locs = await buildLocations()
+  await nextTick()
+  sensorFullMap = await createMap('sensor-map-full', locs as any, { dark: isDark.value })
+}
+const closeMapFullscreen = () => {
+  if (sensorFullMap) { sensorFullMap.remove(); sensorFullMap = null }
+  isMapFullscreen.value = false
+}
+
+watch(isDark, (d) => {
+  document.querySelectorAll('#sensor-map, #sensor-map-full').forEach((el) => el.classList.toggle('map-dark', d))
+})
 
 // ---- Fetch Units ----
 const fetchUnits = async () => {
@@ -92,9 +171,16 @@ const fetchJenisOptions = async () => {
 }
 
 onMounted(() => {
+  initTheme()
   initAuth()
   fetchUnits()
   fetchJenisOptions()
+  loadSensorMap()
+})
+
+onUnmounted(() => {
+  if (sensorMap) { sensorMap.remove(); sensorMap = null }
+  if (sensorFullMap) { sensorFullMap.remove(); sensorFullMap = null }
 })
 
 const onSearch = () => { currentPage.value = 1; fetchUnits() }
@@ -108,9 +194,12 @@ const openAdd = () => {
   formData.value = {
     code: '', jenis_alat_berat_id: jenisOptions.value[0]?.id || '',
     status: 'SEHAT', health: 100, maintenance: '', savings: 0,
+    lat: -0.5032, lng: 117.1536,
     img_url: 'https://placehold.co/400x250?text=Unit+Baru',
     model3d_url: 'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb'
   }
+  model3dMode.value = 'link'
+  modelFileName.value = ''
   formError.value = ''
   isFormOpen.value = true
 }
@@ -122,8 +211,12 @@ const openEdit = (unit: UnitTambang) => {
     jenis_alat_berat_id: unit.jenis_alat_berat_id,
     status: unit.status, health: unit.health,
     maintenance: unit.maintenance, savings: unit.savings,
+    lat: unit.lat, lng: unit.lng,
     img_url: unit.img_url || '', model3d_url: unit.model3d_url || ''
   }
+  const isUploaded = (unit.model3d_url || '').startsWith('/media/')
+  model3dMode.value = isUploaded ? 'upload' : 'link'
+  modelFileName.value = isUploaded ? (unit.model3d_url || '').split('/').pop() || '' : ''
   formError.value = ''
   isFormOpen.value = true
 }
@@ -143,6 +236,8 @@ const save = async () => {
       savings: Number(formData.value.savings),
       img_url: formData.value.img_url || undefined,
       model3d_url: formData.value.model3d_url || undefined,
+      lat: formData.value.lat !== '' && formData.value.lat != null ? Number(formData.value.lat) : undefined,
+      lng: formData.value.lng !== '' && formData.value.lng != null ? Number(formData.value.lng) : undefined,
     }
     if (formMode.value === 'add') {
       await api.createUnitTambang(payload)
@@ -151,6 +246,7 @@ const save = async () => {
     }
     isFormOpen.value = false
     await fetchUnits()
+    await loadSensorMap()
   } catch (e: any) {
     formError.value = e?.data?.message || 'Gagal menyimpan.'
   } finally {
@@ -194,10 +290,10 @@ const exportCSV = () => {
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-mesh text-[color:var(--text)]">
+  <div class="flex h-screen overflow-hidden bg-mesh text-[color:var(--text)]">
 
     <!-- Sidebar -->
-    <aside class="w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)] p-5 flex flex-col justify-between z-10 shrink-0">
+    <aside class="w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)] p-5 flex flex-col justify-between z-10 shrink-0 h-screen overflow-y-auto">
       <div>
         <div class="flex items-center gap-3 mb-9 px-1">
           <div class="w-11 h-11 rounded-xl bg-amber-gradient flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(242,166,12,0.7)]">
@@ -217,11 +313,21 @@ const exportCSV = () => {
           </NuxtLink>
         </nav>
       </div>
-      <div class="panel-flat p-4">
-        <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)]">Logged in as</p>
-        <div class="flex items-center gap-3 mt-2">
-          <div class="w-9 h-9 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-sm">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
-          <p class="font-semibold text-sm truncate">{{ user?.name || 'Admin' }}</p>
+      <div class="space-y-2">
+        <button @click="toggleTheme" class="theme-toggle" aria-label="Ganti tema">
+          <span class="flex items-center gap-2.5 font-semibold text-sm">
+            <svg v-if="isDark" class="w-4 h-4 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+            <svg v-else class="w-4 h-4 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            {{ isDark ? 'Mode Gelap' : 'Mode Terang' }}
+          </span>
+          <span class="tt-switch" :class="{ 'tt-on': isDark }"><span class="tt-knob"></span></span>
+        </button>
+        <div class="panel-flat p-4">
+          <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)]">Logged in as</p>
+          <div class="flex items-center gap-3 mt-2">
+            <div class="w-9 h-9 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-sm">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
+            <p class="font-semibold text-sm truncate">{{ user?.name || 'Admin' }}</p>
+          </div>
         </div>
       </div>
     </aside>
@@ -322,6 +428,35 @@ const exportCSV = () => {
               :class="currentPage===page ? 'pg-btn pg-active' : 'pg-btn'">{{ page }}</button>
             <button @click="currentPage++; fetchUnits()" :disabled="currentPage===totalPages" class="pg-btn">›</button>
             <button @click="currentPage=totalPages; fetchUnits()" :disabled="currentPage===totalPages" class="pg-btn">»</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Peta Sebaran Sensor -->
+      <section class="panel p-6 mt-7">
+        <div class="flex justify-between items-center mb-5 pb-4 border-b border-[color:var(--border)] flex-wrap gap-3">
+          <div>
+            <h2 class="font-display text-2xl font-bold uppercase tracking-wide">Peta Sebaran Sensor</h2>
+            <p class="text-xs text-[color:var(--text-muted)] mt-1">Posisi unit berdasarkan koordinat (lat/long) riil · {{ mapUnitCount }} unit terpetakan</p>
+          </div>
+          <div class="flex items-center gap-3 flex-wrap">
+            <div class="hidden sm:flex gap-4 text-xs font-semibold">
+              <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-healthy"></span> Sehat</div>
+              <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-warning"></span> Warning</div>
+              <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-critical"></span> Critical</div>
+            </div>
+            <button @click="openMapFullscreen" class="btn btn-ghost !py-2 text-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/></svg>
+              Layar Penuh
+            </button>
+          </div>
+        </div>
+        <div class="relative w-full h-[460px] rounded-xl border border-[color:var(--border)] overflow-hidden isolate z-0">
+          <div id="sensor-map" class="w-full h-full bg-[color:var(--surface-3)]"></div>
+          <div class="map-depth pointer-events-none absolute inset-0 z-[400]"></div>
+          <div v-if="mapUnitCount === 0" class="absolute inset-0 z-[401] flex flex-col items-center justify-center text-center gap-2 bg-[color:var(--surface-2)]/80 backdrop-blur-sm">
+            <p class="font-semibold">Belum ada unit dengan koordinat</p>
+            <p class="text-sm text-[color:var(--text-muted)]">Isi Latitude & Longitude saat menambah/edit unit untuk menampilkannya di peta.</p>
           </div>
         </div>
       </section>
@@ -428,14 +563,49 @@ const exportCSV = () => {
             <label class="label">Est. Savings ($)</label>
             <input v-model.number="formData.savings" type="number" class="field" />
           </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="label">Latitude</label>
+              <input v-model.number="formData.lat" type="number" step="0.0001" placeholder="-0.5032" class="field" />
+            </div>
+            <div>
+              <label class="label">Longitude</label>
+              <input v-model.number="formData.lng" type="number" step="0.0001" placeholder="117.1536" class="field" />
+            </div>
+          </div>
+          <p class="text-[10px] text-[color:var(--text-faint)] -mt-2">Koordinat dipakai untuk Peta Sebaran Sensor.</p>
           <div>
             <label class="label">URL Gambar</label>
             <input v-model="formData.img_url" type="text" placeholder="https://..." class="field text-sm" />
           </div>
           <div>
-            <label class="label">URL Model 3D (.glb)</label>
-            <input v-model="formData.model3d_url" type="text" placeholder="https://....glb" class="field text-sm" />
-            <p class="text-[10px] text-[color:var(--text-faint)] mt-1.5">Format GLB untuk visual 3D unit. Kosongkan untuk pakai gambar biasa.</p>
+            <label class="label">Model 3D Unit (.glb / .gltf)</label>
+            <div class="inline-flex p-1 rounded-lg bg-[color:var(--surface-3)] border border-[color:var(--border)] mb-3">
+              <button type="button" @click="model3dMode = 'link'"
+                :class="model3dMode === 'link' ? 'bg-[color:var(--surface)] text-[color:var(--text)] shadow-elev-sm' : 'text-[color:var(--text-muted)]'"
+                class="px-4 py-1.5 rounded-md text-xs font-semibold transition-all">🔗 Link</button>
+              <button type="button" @click="model3dMode = 'upload'"
+                :class="model3dMode === 'upload' ? 'bg-[color:var(--surface)] text-[color:var(--text)] shadow-elev-sm' : 'text-[color:var(--text-muted)]'"
+                class="px-4 py-1.5 rounded-md text-xs font-semibold transition-all">⬆️ Upload File</button>
+            </div>
+
+            <div v-if="model3dMode === 'link'">
+              <input v-model="formData.model3d_url" type="text" placeholder="https://....glb" class="field text-sm" />
+              <p class="text-[10px] text-[color:var(--text-faint)] mt-1.5">Tempel URL file GLB/GLTF. Kosongkan untuk pakai gambar biasa.</p>
+            </div>
+
+            <div v-else>
+              <label class="flex items-center justify-center gap-2 w-full px-4 py-4 rounded-lg border border-dashed border-[color:var(--border-strong)] bg-[color:var(--surface-2)] cursor-pointer hover:border-amber transition-colors">
+                <svg class="w-5 h-5 text-[color:var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+                <span class="text-sm font-semibold text-[color:var(--text-muted)]">{{ modelUploading ? 'Mengunggah…' : 'Pilih file .glb / .gltf' }}</span>
+                <input type="file" accept=".glb,.gltf,model/gltf-binary" class="hidden" @change="onModelFileChange" :disabled="modelUploading" />
+              </label>
+              <p v-if="modelFileName" class="text-[11px] text-healthy font-semibold mt-2 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
+                {{ modelFileName }}
+              </p>
+              <p class="text-[10px] text-[color:var(--text-faint)] mt-1.5">File disimpan di media frontend (maks 50 MB).</p>
+            </div>
           </div>
         </div>
         <div class="px-6 py-4 border-t border-[color:var(--border)] bg-[color:var(--surface-2)] flex justify-end gap-3">
@@ -461,6 +631,24 @@ const exportCSV = () => {
           <span class="text-xl">📄</span>
         </button>
         <button @click="isExportOpen = false" class="mt-5 text-sm font-semibold text-[color:var(--text-muted)] hover:text-amber transition-colors">Tutup</button>
+      </div>
+    </div>
+
+    <!-- Fullscreen Map Modal -->
+    <div v-if="isMapFullscreen" class="fixed inset-0 z-[120] flex flex-col p-4 md:p-6">
+      <div class="modal-backdrop" @click="closeMapFullscreen"></div>
+      <div class="modal-card relative z-10 flex flex-col flex-1 w-full max-w-[1500px] mx-auto overflow-hidden">
+        <div class="flex justify-between items-center px-6 py-4 border-b border-[color:var(--border)] bg-[color:var(--surface-2)]">
+          <div>
+            <h3 class="font-display text-2xl font-bold uppercase tracking-wide">Peta Sebaran Sensor</h3>
+            <p class="text-xs text-[color:var(--text-muted)]">{{ mapUnitCount }} unit · koordinat real-time</p>
+          </div>
+          <button @click="closeMapFullscreen" class="w-9 h-9 rounded-lg hover:bg-critical/15 hover:text-critical text-[color:var(--text-muted)] flex items-center justify-center transition-colors">✕</button>
+        </div>
+        <div class="relative flex-1">
+          <div id="sensor-map-full" class="absolute inset-0 bg-[color:var(--surface-3)]"></div>
+          <div class="map-depth pointer-events-none absolute inset-0 z-[400]"></div>
+        </div>
       </div>
     </div>
 

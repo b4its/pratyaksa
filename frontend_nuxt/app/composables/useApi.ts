@@ -111,6 +111,8 @@ export const useApi = () => {
       savings: number
       img_url?: string
       model3d_url?: string
+      lat?: number
+      lng?: number
     }) {
       return await $fetch(`${baseURL}/unit-tambang`, {
         method: 'POST',
@@ -130,6 +132,8 @@ export const useApi = () => {
         savings: number
         img_url: string
         model3d_url: string
+        lat: number
+        lng: number
       }>,
     ) {
       return await $fetch(`${baseURL}/unit-tambang/${id}`, {
@@ -144,6 +148,13 @@ export const useApi = () => {
         method: 'DELETE',
         headers: getAuthHeaders(),
       })
+    },
+
+    // ---- Upload model 3D (.glb/.gltf) ke media frontend (Nuxt server route) ----
+    async uploadModel(file: File) {
+      const fd = new FormData()
+      fd.append('file', file)
+      return await $fetch('/api/upload-model', { method: 'POST', body: fd })
     },
 
     // ---- Analisa Kerusakan (Health Analytics - realtime) ----

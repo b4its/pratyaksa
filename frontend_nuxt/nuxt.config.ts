@@ -43,6 +43,9 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'Pratyaksa',
+      link: [
+        { rel: 'stylesheet', href: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' },
+      ],
     },
     // Transisi antar halaman
     pageTransition: { name: 'page', mode: 'out-in' },

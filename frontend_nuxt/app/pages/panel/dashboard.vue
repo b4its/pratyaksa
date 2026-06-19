@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 
 // Muat web component <model-viewer> untuk render GLB
 useHead({
@@ -7,6 +7,15 @@ useHead({
     { type: 'module', src: 'https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js' },
   ],
 })
+
+const { createMap } = useFleetMap()
+let leafletMap: any = null
+let fullMap: any = null
+const isMapFullscreen = ref(false)
+
+const applyMapTheme = (dark: boolean) => {
+  document.querySelectorAll('#mining-map, #mining-map-full').forEach((el) => el.classList.toggle('map-dark', dark))
+}
 
 // ---- Sidebar ----
 const menuItems = [
@@ -22,6 +31,7 @@ const setActiveMenu = (menu: any) => { activeMenu.value = menu.name }
 // ---- Loading & Auth ----
 const isLoading = ref(true)
 const { initAuth, user } = useAuth()
+const { isDark, toggleTheme, initTheme } = useTheme()
 const api = useApi()
 
 // ---- KPI dari backend ----
@@ -55,6 +65,15 @@ interface FleetUnit {
 const units = ref<FleetUnit[]>([])
 const featuredUnit = ref<FleetUnit | null>(null)
 const selectFeatured = (u: FleetUnit) => { featuredUnit.value = u }
+
+// Pagination grid armada 3D (agar tidak memanjang ke bawah)
+const unitPage = ref(1)
+const unitsPerPage = 6
+const unitTotalPages = computed(() => Math.max(1, Math.ceil(units.value.length / unitsPerPage)))
+const pagedUnits = computed(() => {
+  const start = (unitPage.value - 1) * unitsPerPage
+  return units.value.slice(start, start + unitsPerPage)
+})
 
 const statusHex = (s: string) => ({
   SEHAT: '#1FA971', WARNING: '#E0A106', CRITICAL: '#E0413E', RUSAK: '#7A848E',
@@ -116,6 +135,7 @@ const loadDashboard = async () => {
 }
 
 onMounted(async () => {
+  initTheme()
   initAuth()
   await Promise.all([loadDashboard(), loadUnits()])
   isLoading.value = false
@@ -173,58 +193,52 @@ onMounted(async () => {
       })
     }
 
-    // Leaflet Map
+    // Peta sebaran unit — koordinat RIIL dari unit_tambang (composable bersama)
     if (document.getElementById('mining-map') && mapLocations.value.length > 0) {
-      const L = (await import('leaflet')).default
-      const map = L.map('mining-map', { center: [-0.5032, 117.1536], zoom: 15, zoomControl: false })
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-      }).addTo(map)
-
-      mapLocations.value.forEach((loc: any) => {
-        const icon = L.divIcon({
-          className: 'custom-fleet-marker',
-          html: `<div style="display:flex;flex-direction:column;align-items:center;">
-            <div style="background-color:${loc.color_hex};width:26px;height:26px;border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;box-shadow:0 4px 12px -2px rgba(0,0,0,0.4);font-family:'Inter',sans-serif;">${loc.level}</div>
-            <div style="background-color:#171d24;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;margin-top:-4px;box-shadow:0 4px 10px -2px rgba(0,0,0,0.35);white-space:nowrap;font-family:'JetBrains Mono',monospace;">${loc.unit}</div>
-          </div>`,
-          iconSize: [50, 50], iconAnchor: [25, 25], popupAnchor: [0, -20],
-        })
-        const marker = L.marker([loc.lat, loc.lng], { icon }).addTo(map)
-        marker.bindPopup(`
-          <div style="font-family:'Inter',sans-serif;min-width:220px;border:1px solid rgba(0,0,0,0.08);border-radius:12px;overflow:hidden;box-shadow:0 14px 34px -12px rgba(0,0,0,0.4);">
-            <div style="background-color:${loc.color_hex};color:#fff;padding:12px;">
-              <h4 style="font-weight:800;font-size:17px;margin:0;">${loc.unit}</h4>
-              <p style="margin:0;font-size:12px;opacity:.9;">${loc.unit_type}</p>
-            </div>
-            <div style="padding:12px;background-color:#fff;">
-              <table style="width:100%;font-size:12px;border-collapse:collapse;color:#1b2128;">
-                <tr><td style="padding-bottom:5px;color:#5d6b7a;">Status</td><td style="font-weight:700;text-align:right;">${loc.status}</td></tr>
-                <tr><td style="padding-bottom:5px;color:#5d6b7a;">Operator</td><td style="font-weight:700;text-align:right;">${loc.operator}</td></tr>
-                <tr><td style="padding-bottom:5px;color:#5d6b7a;">Speed</td><td style="font-weight:700;text-align:right;">${loc.speed}</td></tr>
-                <tr><td style="padding-bottom:5px;color:#5d6b7a;">Suhu Mesin</td><td style="font-weight:700;text-align:right;">${loc.temp}</td></tr>
-                <tr><td style="color:#5d6b7a;">Fuel Level</td><td style="font-weight:700;text-align:right;">${loc.fuel}</td></tr>
-              </table>
-              <div style="margin-top:10px;padding-top:8px;border-top:1px dashed #d7dde4;font-size:10px;text-align:center;color:#5d6b7a;font-family:'JetBrains Mono',monospace;">
-                ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)} · <b>${loc.last_update}</b>
-              </div>
-            </div>
-          </div>`, { closeButton: false, className: 'custom-leaflet-popup' })
-      })
+      leafletMap = await createMap('mining-map', mapLocations.value as any, { zoom: 13, dark: isDark.value })
     }
   }
 })
+
+// Fullscreen peta
+const openMapFullscreen = async () => {
+  isMapFullscreen.value = true
+  await nextTick()
+  fullMap = await createMap('mining-map-full', mapLocations.value as any, { zoom: 13, dark: isDark.value })
+}
+const closeMapFullscreen = () => {
+  if (fullMap) { fullMap.remove(); fullMap = null }
+  isMapFullscreen.value = false
+}
 
 // ---- Modal laporan ----
 const isReportModalOpen = ref(false)
 const openReportModal = () => { isReportModalOpen.value = true }
 const closeReportModal = () => { isReportModalOpen.value = false }
+
+onUnmounted(() => {
+  if (leafletMap) { leafletMap.remove(); leafletMap = null }
+  if (fullMap) { fullMap.remove(); fullMap = null }
+})
+
+// Recolor chart & ganti tema peta saat tema di-toggle
+watch(isDark, () => {
+  applyMapTheme(isDark.value)
+  if (!utilizationChart) return
+  const t = chartTheme()
+  const o: any = utilizationChart.options
+  o.scales.x.grid.color = t.grid; o.scales.x.ticks.color = t.tick; o.scales.x.border.color = t.axis
+  o.scales.y.grid.color = t.grid; o.scales.y.ticks.color = t.tick; o.scales.y.border.color = t.axis
+  o.plugins.tooltip.backgroundColor = t.text; o.plugins.tooltip.borderColor = t.axis
+  utilizationChart.data.datasets.forEach((d: any) => { d.pointBorderColor = t.surface })
+  utilizationChart.update()
+})
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-mesh text-[color:var(--text)] relative overflow-x-hidden">
+  <div class="flex h-screen overflow-hidden bg-mesh text-[color:var(--text)] relative">
 
-    <aside class="w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)] p-5 flex flex-col justify-between z-[60] shrink-0">
+    <aside class="w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)] p-5 flex flex-col justify-between z-[60] shrink-0 h-screen overflow-y-auto">
       <div>
         <div class="flex items-center gap-3 mb-9 px-1">
           <div class="w-11 h-11 rounded-xl bg-amber-gradient flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(242,166,12,0.7)]">
@@ -250,11 +264,21 @@ const closeReportModal = () => { isReportModalOpen.value = false }
         </nav>
       </div>
 
-      <div class="panel-flat p-4">
-        <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)]">Logged in as</p>
-        <div class="flex items-center gap-3 mt-2">
-          <div class="w-9 h-9 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-sm">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
-          <p class="font-semibold text-sm truncate">{{ user?.name || 'Admin' }}</p>
+      <div class="space-y-2">
+        <button @click="toggleTheme" class="theme-toggle" aria-label="Ganti tema">
+          <span class="flex items-center gap-2.5 font-semibold text-sm">
+            <svg v-if="isDark" class="w-4 h-4 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+            <svg v-else class="w-4 h-4 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            {{ isDark ? 'Mode Gelap' : 'Mode Terang' }}
+          </span>
+          <span class="tt-switch" :class="{ 'tt-on': isDark }"><span class="tt-knob"></span></span>
+        </button>
+        <div class="panel-flat p-4">
+          <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)]">Logged in as</p>
+          <div class="flex items-center gap-3 mt-2">
+            <div class="w-9 h-9 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-sm">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
+            <p class="font-semibold text-sm truncate">{{ user?.name || 'Admin' }}</p>
+          </div>
         </div>
       </div>
     </aside>
@@ -421,35 +445,44 @@ const closeReportModal = () => { isReportModalOpen.value = false }
             </div>
 
             <!-- Unit selector grid -->
-            <div class="grid grid-cols-2 gap-3 max-h-[420px] overflow-y-auto pr-1">
-              <button
-                v-for="(u, i) in units" :key="u.id"
-                @click="selectFeatured(u)"
-                :class="[
-                  'anim-pop relative overflow-hidden rounded-xl border text-left transition-all group',
-                  featuredUnit && featuredUnit.id === u.id ? 'border-amber ring-2 ring-amber/30' : 'border-[color:var(--border)] hover:-translate-y-1 hover:shadow-elev-sm'
-                ]"
-                :style="{ animationDelay: (i * 0.05) + 's' }"
-              >
-                <div class="viewer-3d h-28 bg-steel-gradient relative overflow-hidden">
-                  <model-viewer
-                    :key="'mini-' + u.id"
-                    :src="u.model3d_url || 'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb'"
-                    :alt="'Model 3D ' + u.code"
-                    auto-rotate auto-rotate-delay="0" rotation-per-second="40deg" disable-zoom interaction-prompt="none"
-                    shadow-intensity="1" exposure="1.1" environment-image="neutral"
-                    class="w-full h-full outline-none pointer-events-none" style="background-color:transparent;"
-                  ></model-viewer>
-                  <div class="absolute top-1.5 right-1.5 w-3 h-3 rounded-full border-2 border-white" :style="{ backgroundColor: statusHex(u.status) }"></div>
-                </div>
-                <div class="p-2.5 bg-[color:var(--surface)] border-t border-[color:var(--border)]">
-                  <p class="font-mono font-semibold text-xs truncate">{{ u.code }}</p>
-                  <div class="flex items-center justify-between mt-1">
-                    <span class="text-[10px] text-[color:var(--text-faint)]">HP {{ u.health }}%</span>
-                    <span class="text-[8px] font-semibold px-1.5 py-0.5 rounded text-white" :style="{ backgroundColor: statusHex(u.status) }">{{ u.status }}</span>
+            <div class="flex flex-col">
+              <div class="grid grid-cols-2 gap-3 flex-1">
+                <button
+                  v-for="(u, i) in pagedUnits" :key="u.id"
+                  @click="selectFeatured(u)"
+                  :class="[
+                    'anim-pop relative overflow-hidden rounded-xl border text-left transition-all group',
+                    featuredUnit && featuredUnit.id === u.id ? 'border-amber ring-2 ring-amber/30' : 'border-[color:var(--border)] hover:-translate-y-1 hover:shadow-elev-sm'
+                  ]"
+                  :style="{ animationDelay: (i * 0.05) + 's' }"
+                >
+                  <div class="viewer-3d h-28 bg-steel-gradient relative overflow-hidden">
+                    <model-viewer
+                      :key="'mini-' + u.id"
+                      :src="u.model3d_url || 'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb'"
+                      :alt="'Model 3D ' + u.code"
+                      auto-rotate auto-rotate-delay="0" rotation-per-second="40deg" disable-zoom interaction-prompt="none"
+                      shadow-intensity="1" exposure="1.1" environment-image="neutral"
+                      class="w-full h-full outline-none pointer-events-none" style="background-color:transparent;"
+                    ></model-viewer>
+                    <div class="absolute top-1.5 right-1.5 w-3 h-3 rounded-full border-2 border-white" :style="{ backgroundColor: statusHex(u.status) }"></div>
                   </div>
+                  <div class="p-2.5 bg-[color:var(--surface)] border-t border-[color:var(--border)]">
+                    <p class="font-mono font-semibold text-xs truncate">{{ u.code }}</p>
+                    <div class="flex items-center justify-between mt-1">
+                      <span class="text-[10px] text-[color:var(--text-faint)]">HP {{ u.health }}%</span>
+                      <span class="text-[8px] font-semibold px-1.5 py-0.5 rounded text-white" :style="{ backgroundColor: statusHex(u.status) }">{{ u.status }}</span>
+                    </div>
+                  </div>
+                </button>
+              </div>
+              <div v-if="unitTotalPages > 1" class="flex items-center justify-between mt-3 pt-3 border-t border-[color:var(--border)]">
+                <span class="text-[11px] font-medium text-[color:var(--text-faint)]">Hal {{ unitPage }} / {{ unitTotalPages }} · {{ units.length }} unit</span>
+                <div class="flex gap-1.5">
+                  <button @click="unitPage = Math.max(1, unitPage - 1)" :disabled="unitPage === 1" class="mini-pg">‹</button>
+                  <button @click="unitPage = Math.min(unitTotalPages, unitPage + 1)" :disabled="unitPage === unitTotalPages" class="mini-pg">›</button>
                 </div>
-              </button>
+              </div>
             </div>
           </div>
         </div>
@@ -463,10 +496,16 @@ const closeReportModal = () => { isReportModalOpen.value = false }
             </template>
             <template v-else>
               <h2 class="font-display text-2xl font-bold uppercase tracking-wide">Peta Sebaran Unit</h2>
-              <div class="hidden sm:flex gap-4 text-xs font-semibold badge-wrap">
-                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-critical"></span> Critical</div>
-                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-warning"></span> High</div>
-                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-healthy"></span> Normal</div>
+              <div class="flex items-center gap-3 flex-wrap">
+                <div class="hidden sm:flex gap-4 text-xs font-semibold">
+                  <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-critical"></span> Critical</div>
+                  <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-warning"></span> High</div>
+                  <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-healthy"></span> Normal</div>
+                </div>
+                <button @click="openMapFullscreen" class="btn btn-ghost !py-2 text-sm">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/></svg>
+                  Layar Penuh
+                </button>
               </div>
             </template>
           </div>
@@ -474,7 +513,11 @@ const closeReportModal = () => { isReportModalOpen.value = false }
           <template v-if="isLoading">
             <div class="w-full h-[500px] shimmer rounded-xl"></div>
           </template>
-          <div v-show="!isLoading" id="mining-map" class="w-full h-[500px] rounded-xl border border-[color:var(--border)] relative z-0 overflow-hidden bg-[#e8f4f8]"></div>
+          <div v-show="!isLoading" class="relative w-full h-[500px] rounded-xl border border-[color:var(--border)] overflow-hidden isolate z-0">
+            <div id="mining-map" class="w-full h-full bg-[color:var(--surface-3)]"></div>
+            <!-- sheen + vignette untuk kesan 3D / kedalaman -->
+            <div class="map-depth pointer-events-none absolute inset-0 z-[400]"></div>
+          </div>
         </div>
 
       </div>
@@ -571,9 +614,89 @@ const closeReportModal = () => { isReportModalOpen.value = false }
       </div>
     </div>
 
+    <!-- Fullscreen Map Modal -->
+    <div v-if="isMapFullscreen" class="fixed inset-0 z-[120] flex flex-col p-4 md:p-6">
+      <div class="modal-backdrop" @click="closeMapFullscreen"></div>
+      <div class="modal-card relative z-10 flex flex-col flex-1 w-full max-w-[1500px] mx-auto overflow-hidden">
+        <div class="flex justify-between items-center px-6 py-4 border-b border-[color:var(--border)] bg-[color:var(--surface-2)]">
+          <div>
+            <h3 class="font-display text-2xl font-bold uppercase tracking-wide">Peta Sebaran Unit</h3>
+            <p class="text-xs text-[color:var(--text-muted)]">{{ mapLocations.length }} unit · koordinat real-time</p>
+          </div>
+          <button @click="closeMapFullscreen" class="w-9 h-9 rounded-lg hover:bg-critical/15 hover:text-critical text-[color:var(--text-muted)] flex items-center justify-center transition-colors">✕</button>
+        </div>
+        <div class="relative flex-1">
+          <div id="mining-map-full" class="absolute inset-0 bg-[color:var(--surface-3)]"></div>
+          <div class="map-depth pointer-events-none absolute inset-0 z-[400]"></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <style>
-@import url('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+/* ===== Peta Leaflet — UI modern, kesan topografi 3D ===== */
+.leaflet-container { background: var(--surface-3); font-family: 'Inter', sans-serif; }
+
+/* Filter gelap untuk tile saat dark mode */
+#mining-map.map-dark .leaflet-tile-pane {
+  filter: brightness(0.7) contrast(1.08) saturate(0.85) hue-rotate(6deg);
+}
+
+/* Sheen + vignette → kesan kedalaman 3D */
+.map-depth {
+  border-radius: inherit;
+  box-shadow: inset 0 2px 16px rgba(0,0,0,0.18), inset 0 -60px 70px -40px rgba(0,0,0,0.5);
+  background: linear-gradient(to bottom, rgba(255,255,255,0.07), transparent 16%);
+}
+
+/* Kontrol zoom modern */
+.leaflet-control-zoom { border: none !important; box-shadow: var(--shadow-sm) !important; border-radius: 10px !important; overflow: hidden; }
+.leaflet-control-zoom a {
+  background: var(--surface) !important; color: var(--text) !important;
+  border: 1px solid var(--border) !important; width: 34px; height: 34px; line-height: 32px;
+  font-size: 18px; font-weight: 700; transition: background-color .15s ease, color .15s ease;
+}
+.leaflet-control-zoom a:hover { background: var(--amber) !important; color: #1b1206 !important; }
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--surface) 80%, transparent) !important;
+  color: var(--text-faint) !important; font-size: 10px !important; border-radius: 8px 0 0 0;
+  backdrop-filter: blur(6px);
+}
+.leaflet-control-attribution a { color: var(--text-muted) !important; }
+
+/* Marker armada (pin + pulse) */
+.fleet-marker { position: relative; }
+.fleet-pulse {
+  position: absolute; left: 50%; top: 18px; transform: translate(-50%, -50%);
+  width: 26px; height: 26px; border-radius: 50%; opacity: .55;
+  animation: fleetPulse 1.8s ease-out infinite;
+}
+@keyframes fleetPulse {
+  0% { transform: translate(-50%,-50%) scale(0.6); opacity: .55; }
+  100% { transform: translate(-50%,-50%) scale(2.4); opacity: 0; }
+}
+.fleet-dot {
+  position: absolute; left: 50%; top: 18px; transform: translate(-50%, -50%);
+  width: 28px; height: 28px; border-radius: 50% 50% 50% 0; rotate: 45deg;
+  border: 2px solid #fff; box-shadow: 0 6px 14px -3px rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 800; font-size: 12px;
+}
+.fleet-dot { /* angka tetap tegak walau pin diputar */ }
+.fleet-dot > * { rotate: -45deg; }
+.fleet-label {
+  position: absolute; left: 50%; top: 36px; transform: translateX(-50%);
+  background: #171d24; color: #fff; font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px;
+  white-space: nowrap; box-shadow: 0 4px 10px -2px rgba(0,0,0,0.45);
+}
+
+/* Popup modern */
+.modern-popup .leaflet-popup-content-wrapper {
+  background: transparent; box-shadow: 0 18px 40px -14px rgba(0,0,0,0.5); padding: 0; border-radius: 12px;
+}
+.modern-popup .leaflet-popup-content { margin: 0; width: auto !important; }
+.modern-popup .leaflet-popup-tip { background: var(--surface); }
 </style>
