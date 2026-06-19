@@ -220,56 +220,119 @@ const COMPONENTS: [&str; 6] = [
     "Kelistrikan",
 ];
 
-/// Komponen prediksi RUL multi-komponen (sesuai dataset industri alat berat).
-/// (label, nominal design-life jam)
-const RUL_COMPONENTS: [(&str, f64); 15] = [
-    ("Brake Pad (Rear Axle)", 3500.0),
-    ("Sistem Hidrolik", 12000.0),
-    ("Powertrain", 16000.0),
-    ("Brake Caliper", 9000.0),
-    ("Sistem Rem", 8000.0),
-    ("Sistem Kemudi", 11000.0),
-    ("Suspensi", 10000.0),
-    ("Pompa Hidrolik", 13000.0),
-    ("Main Bearing", 18000.0),
-    ("Turbocharger", 14000.0),
-    ("Transmisi", 17000.0),
-    ("Seal Pompa Utama", 7000.0),
-    ("Bearing Inner Race", 15000.0),
-    ("Turbo Impeller", 13500.0),
-    ("Brake Pad (Rear)", 3200.0),
-];
-
-fn rul_level(hours: f64) -> &'static str {
-    if hours < 250.0 {
-        "CRITICAL"
-    } else if hours < 700.0 {
-        "WARNING"
-    } else {
-        "OK"
+/// Slug equipment_type sesuai konfigurasi expert model data science.
+fn equipment_type_slug(jenis: &Option<String>) -> &'static str {
+    match unit_kind(jenis) {
+        "Excavator" => "excavator",
+        "Dump Truck" => "haul_truck",
+        "Bulldozer" => "dozer",
+        "Wheel Loader" => "wheel_loader",
+        _ => "heavy_equipment",
     }
 }
 
-/// Prediksi RUL untuk banyak komponen sekaligus (jam tersisa + tingkat urgensi).
-fn derive_rul_components(unit: &UnitTambang) -> Vec<serde_json::Value> {
+const RISK_LABELS: [&str; 3] = ["NORMAL", "WARNING", "CRITICAL"];
+
+/// Prediksi AI selaras dengan kontrak /predict data science (PredictionResponse):
+/// XGBoost anomaly + LSTM RUL multi-komponen + digital twin + drift detection.
+fn derive_prediction(unit: &UnitTambang) -> serde_json::Value {
     let health = unit.health as f64;
     let seed = code_seed(&unit.code);
-    let hfac = (health / 100.0).clamp(0.05, 1.0);
-    RUL_COMPONENTS
-        .iter()
-        .enumerate()
-        .map(|(i, (label, life))| {
-            let wob = 0.55 + frand(seed + 50.0 + i as f64) * 0.7; // variasi per komponen
-            let hours = (life * hfac * wob).round().max(20.0);
-            let conf = (74.0 + frand(seed + 80.0 + i as f64) * 22.0).round();
-            json!({
-                "component": label,
-                "hours_remaining": hours,
-                "level": rul_level(hours),
-                "confidence": conf,
-            })
-        })
-        .collect()
+    let t = time_bucket();
+    let degr = ((100.0 - health) / 100.0).clamp(0.0, 1.0);
+    let r1 = |x: f64| (x * 10.0).round() / 10.0;
+
+    // --- XGBoost anomaly class (0=Normal,1=Warning,2=Critical) ---
+    let xgb_class: i32 = if unit.status == "CRITICAL" || unit.status == "RUSAK" || degr > 0.68 {
+        2
+    } else if unit.status == "WARNING" || degr > 0.4 {
+        1
+    } else {
+        0
+    };
+
+    // --- LSTM RUL keseluruhan (jam), capped RUL_MAX ---
+    let rul_max = 2000.0;
+    let lstm_rul_hours = r1(((1.0 - degr) * rul_max * (0.7 + frand(seed + 60.0) * 0.5)).clamp(8.0, rul_max));
+    let rul_uncertainty = r1(lstm_rul_hours * (0.08 + degr * 0.12) + 2.0);
+
+    // Kelas dari LSTM (berbasis ambang RUL)
+    let lstm_class: i32 = if lstm_rul_hours < 120.0 {
+        2
+    } else if lstm_rul_hours < 400.0 {
+        1
+    } else {
+        0
+    };
+
+    // Resolusi konflik → ambil kelas paling konservatif
+    let risk_class = xgb_class.max(lstm_class);
+    let model_agreement = xgb_class == lstm_class;
+
+    // RUL per komponen (LSTM) — (nominal life, seed idx)
+    let comp = |nominal: f64, idx: f64| -> f64 {
+        r1(((1.0 - degr) * nominal * (0.6 + frand(seed + 70.0 + idx) * 0.6)).clamp(10.0, nominal))
+    };
+    let lstm_hydraulic_system = comp(900.0, 1.0);
+    let lstm_hydraulic_pump = comp(760.0, 2.0);
+    let lstm_pump_seal = comp(560.0, 3.0);
+    let lstm_brake_system = comp(820.0, 4.0);
+    let lstm_brake_caliper = comp(640.0, 5.0);
+    let lstm_brake_pad = comp(360.0, 6.0);
+    let lstm_steering_system = comp(880.0, 7.0);
+
+    // Digital twin (physics-based)
+    let brake_twin_rul = comp(700.0, 8.0);
+    let bearing_twin_rul = comp(900.0, 9.0);
+    let hydraulic_twin_rul = comp(820.0, 10.0);
+
+    // Drift detection
+    let max_z_score = r1(0.6 + frand(seed + t + 90.0) * 2.4);
+    let drift_detected = max_z_score > 2.5;
+    let feat_pool = [
+        "engine_oil_temp_c", "vibration_z_g", "coolant_temp_c",
+        "acoustic_emission_db", "oil_particle_count_iso",
+    ];
+    let drifted_features: Vec<&str> = if drift_detected {
+        let n = 1 + (frand(seed + 91.0) * 2.0) as usize;
+        feat_pool[..n.min(feat_pool.len())].to_vec()
+    } else {
+        vec![]
+    };
+    let n_drifted = drifted_features.len() as i32;
+
+    let latency_ms = r1(28.0 + frand(seed + t + 92.0) * 40.0);
+
+    json!({
+        "asset_id": unit.code,
+        "equipment_type": equipment_type_slug(&unit.jenis_alat_berat_nama),
+        "xgb_anomaly_class": xgb_class,
+        "xgb_anomaly_label": RISK_LABELS[xgb_class as usize],
+        "lstm_rul_hours": lstm_rul_hours,
+        "rul_uncertainty": rul_uncertainty,
+        "risk_level": RISK_LABELS[risk_class as usize],
+        "risk_class": risk_class,
+        "model_agreement": model_agreement,
+        "lstm_hydraulic_system": lstm_hydraulic_system,
+        "lstm_hydraulic_pump": lstm_hydraulic_pump,
+        "lstm_pump_seal": lstm_pump_seal,
+        "lstm_brake_system": lstm_brake_system,
+        "lstm_brake_caliper": lstm_brake_caliper,
+        "lstm_brake_pad": lstm_brake_pad,
+        "lstm_steering_system": lstm_steering_system,
+        "digital_twin": {
+            "brake_twin_rul": brake_twin_rul,
+            "bearing_twin_rul": bearing_twin_rul,
+            "hydraulic_twin_rul": hydraulic_twin_rul,
+        },
+        "drift_status": {
+            "drift_detected": drift_detected,
+            "drifted_features": drifted_features,
+            "max_z_score": max_z_score,
+            "n_drifted": n_drifted,
+        },
+        "latency_ms": latency_ms,
+    })
 }
 
 /// Parameter operasional & lingkungan (sesuai dataset: road grade, payload,
@@ -419,7 +482,7 @@ fn derive_unit_analysis(unit: &UnitTambang) -> serde_json::Value {
         "shap_contributions": shap,
         "sensor_history": history,
         "telemetry": derive_telemetry(unit),
-        "rul_components": derive_rul_components(unit),
+        "prediction": derive_prediction(unit),
         "operational": derive_operational(unit),
         "updated_at": now.to_rfc3339(),
     })

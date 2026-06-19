@@ -44,7 +44,7 @@ interface UnitAnalysis {
   shap_contributions: { feature: string; value: number }[]
   sensor_history: { time: string; suhu_mesin: number; vibration: number; tekanan_oli: number; acoustic: number }[]
   telemetry: Telemetry
-  rul_components: { component: string; hours_remaining: number; level: string; confidence: number }[]
+  prediction: Prediction
   operational: Record<string, number | boolean>
   updated_at: string
 }
@@ -60,6 +60,27 @@ interface Telemetry {
   lab_viscosity_100c: number; lab_water_content_pct: number; lab_soot_pct: number
   delta_eng_temp: number; status_label: string; rul_hours: number
 }
+interface Prediction {
+  asset_id: string
+  equipment_type: string
+  xgb_anomaly_class: number
+  xgb_anomaly_label: string
+  lstm_rul_hours: number
+  rul_uncertainty: number
+  risk_level: string
+  risk_class: number
+  model_agreement: boolean
+  lstm_hydraulic_system: number
+  lstm_hydraulic_pump: number
+  lstm_pump_seal: number
+  lstm_brake_system: number
+  lstm_brake_caliper: number
+  lstm_brake_pad: number
+  lstm_steering_system: number
+  digital_twin: { brake_twin_rul: number; bearing_twin_rul: number; hydraulic_twin_rul: number }
+  drift_status: { drift_detected: boolean; drifted_features: string[]; max_z_score: number; n_drifted: number }
+  latency_ms: number
+}
 
 // --- STATE ---
 const overview = ref<Overview | null>(null)
@@ -72,6 +93,7 @@ const lastUpdate = ref('')
 
 const { initAuth, user } = useAuth()
 const { isDark, toggleTheme, initTheme } = useTheme()
+const { resolveModel } = useModels()
 const api = useApi()
 let ChartLib: any = null
 let refreshTimer: any = null
@@ -234,7 +256,34 @@ const barValueLabelH = {
   },
 }
 
-const rulColor = (l: string) => ({ CRITICAL: '#E0413E', WARNING: '#E0A106', OK: '#1FA971' }[l] || '#7A848E')
+const rulColor = (l: string) => ({ CRITICAL: '#E0413E', WARNING: '#E0A106', NORMAL: '#1FA971', OK: '#1FA971' }[l] || '#7A848E')
+const rulTone = (h: number) => (h < 150 ? '#E0413E' : h < 450 ? '#E0A106' : '#1FA971')
+const rulToneLabel = (h: number) => (h < 150 ? 'CRITICAL' : h < 450 ? 'WARNING' : 'NORMAL')
+
+// 7 RUL komponen LSTM (sesuai kontrak /predict), urut paling mendesak
+const lstmComponents = computed(() => {
+  const p = analysis.value?.prediction
+  if (!p) return [] as { label: string; hours: number }[]
+  return [
+    { label: 'Sistem Hidrolik', hours: p.lstm_hydraulic_system },
+    { label: 'Pompa Hidrolik', hours: p.lstm_hydraulic_pump },
+    { label: 'Seal Pompa', hours: p.lstm_pump_seal },
+    { label: 'Sistem Rem', hours: p.lstm_brake_system },
+    { label: 'Brake Caliper', hours: p.lstm_brake_caliper },
+    { label: 'Brake Pad (Rear)', hours: p.lstm_brake_pad },
+    { label: 'Sistem Kemudi', hours: p.lstm_steering_system },
+  ].sort((a, b) => a.hours - b.hours)
+})
+
+const digitalTwins = computed(() => {
+  const d = analysis.value?.prediction?.digital_twin
+  if (!d) return [] as { label: string; hours: number }[]
+  return [
+    { label: 'Brake Twin', hours: d.brake_twin_rul },
+    { label: 'Bearing Twin', hours: d.bearing_twin_rul },
+    { label: 'Hydraulic Twin', hours: d.hydraulic_twin_rul },
+  ]
+})
 
 // Parameter operasional & lingkungan (dari dataset industri)
 const operationalFields = [
@@ -260,12 +309,7 @@ const operationalFields = [
   { k: 'wear_metal_cu_ppm', l: 'Wear Metal Cu', u: ' ppm' },
 ]
 
-const urgentComponents = computed(() => {
-  if (!analysis.value) return []
-  return [...analysis.value.rul_components]
-    .sort((a, b) => a.hours_remaining - b.hours_remaining)
-    .slice(0, 3)
-})
+const urgentComponents = computed(() => [...lstmComponents.value].slice(0, 3))
 
 const renderOverviewCharts = () => {
   if (!overview.value) return
@@ -433,22 +477,22 @@ const renderUnitCharts = () => {
     },
   })
 
-  // Prediksi RUL multi-komponen (horizontal bar, urut paling mendesak)
-  const rc = [...analysis.value.rul_components].sort((a, b) => a.hours_remaining - b.hours_remaining)
+  // Prediksi RUL per komponen (LSTM, sesuai /predict) — horizontal bar, urut paling mendesak
+  const rc = lstmComponents.value
   upsertChart('rulComponents', 'rulComponents', {
     type: 'bar',
     data: {
-      labels: rc.map(c => c.component),
+      labels: rc.map(c => c.label),
       datasets: [{
-        data: rc.map(c => c.hours_remaining),
-        backgroundColor: rc.map(c => rulColor(c.level)),
+        data: rc.map(c => c.hours),
+        backgroundColor: rc.map(c => rulTone(c.hours)),
         borderRadius: 5, borderSkipped: false,
       }],
     },
     plugins: [barValueLabelH],
     options: {
       indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-      layout: { padding: { right: 36 } },
+      layout: { padding: { right: 40 } },
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: (c: any) => `${c.raw} jam tersisa` } },
@@ -657,9 +701,9 @@ const statusLabelColor = (s: string) => ({
                 <h3 class="font-display text-lg font-bold uppercase tracking-wide mb-3 pb-2 border-b border-[color:var(--border)]">Visual 3D Unit</h3>
                 <div class="viewer-3d rounded-xl border border-[color:var(--border)] bg-steel-gradient relative cursor-grab active:cursor-grabbing overflow-hidden h-48">
                   <model-viewer
-                    v-if="analysis.unit.model3d_url"
+                    v-if="analysis.unit"
                     :key="analysis.unit.id"
-                    :src="analysis.unit.model3d_url"
+                    :src="resolveModel(analysis.unit.model3d_url, analysis.unit.jenis_alat_berat_nama)"
                     alt="Model 3D unit alat berat"
                     camera-controls auto-rotate auto-rotate-delay="0" rotation-per-second="35deg"
                     shadow-intensity="1.4" exposure="1.1" environment-image="neutral" interaction-prompt="none"
@@ -795,24 +839,74 @@ const statusLabelColor = (s: string) => ({
               </div>
             </div>
 
-            <!-- Prediksi RUL Multi-Komponen -->
+            <!-- Prediksi AI — XGBoost + LSTM + Digital Twin (sesuai /predict) -->
             <div class="panel p-6">
               <div class="flex justify-between items-center mb-4 pb-2 border-b border-[color:var(--border)] flex-wrap gap-2">
-                <h3 class="font-display text-lg font-bold uppercase tracking-wide">Prediksi RUL Multi-Komponen</h3>
-                <span class="text-[10px] text-[color:var(--text-faint)]">{{ analysis.rul_components.length }} komponen diprediksi</span>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-                <div v-for="c in urgentComponents" :key="c.component" class="rounded-xl p-4 border"
-                  :style="{ borderColor: rulColor(c.level) + '66', background: rulColor(c.level) + '14' }">
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-[10px] font-bold uppercase tracking-wide" :style="{ color: rulColor(c.level) }">{{ c.level }}</span>
-                    <span class="text-[10px] text-[color:var(--text-faint)]">conf {{ c.confidence }}%</span>
-                  </div>
-                  <p class="font-semibold text-sm leading-tight">{{ c.component }}</p>
-                  <p class="font-display text-2xl font-bold mt-1" :style="{ color: rulColor(c.level) }">{{ fmtHours(c.hours_remaining) }}</p>
+                <h3 class="font-display text-lg font-bold uppercase tracking-wide">Prediksi AI — Anomali &amp; RUL</h3>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="badge" :class="analysis.prediction.model_agreement ? 'bg-healthy/15 border-healthy/40 text-healthy' : 'bg-warning/15 border-warning/40 text-warning'">
+                    {{ analysis.prediction.model_agreement ? 'Model Sepakat' : 'Model Konflik' }}
+                  </span>
+                  <span class="text-[10px] font-mono text-[color:var(--text-faint)]">{{ analysis.prediction.equipment_type }} · {{ analysis.prediction.latency_ms }}ms</span>
                 </div>
               </div>
-              <div class="h-[420px]"><canvas id="rulComponents"></canvas></div>
+
+              <!-- Ringkasan model -->
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">
+                <div class="rounded-xl p-4 border" :style="{ borderColor: rulColor(analysis.prediction.xgb_anomaly_label) + '55', background: rulColor(analysis.prediction.xgb_anomaly_label) + '12' }">
+                  <p class="cell-label">XGBoost Anomaly</p>
+                  <p class="font-display text-2xl font-bold mt-0.5" :style="{ color: rulColor(analysis.prediction.xgb_anomaly_label) }">{{ analysis.prediction.xgb_anomaly_label }}</p>
+                  <p class="text-[11px] text-[color:var(--text-faint)] mt-0.5">Kelas {{ analysis.prediction.xgb_anomaly_class }} / 2</p>
+                </div>
+                <div class="rounded-xl p-4 border border-[color:var(--border)] bg-[color:var(--surface-2)]">
+                  <p class="cell-label">LSTM RUL (Sistem)</p>
+                  <p class="font-display text-2xl font-bold mt-0.5">{{ analysis.prediction.lstm_rul_hours }} <span class="text-sm font-normal text-[color:var(--text-muted)]">jam</span></p>
+                  <p class="text-[11px] text-[color:var(--text-faint)] mt-0.5">± {{ analysis.prediction.rul_uncertainty }} jam (uncertainty)</p>
+                </div>
+                <div class="rounded-xl p-4 border" :style="{ borderColor: rulColor(analysis.prediction.risk_level) + '55', background: rulColor(analysis.prediction.risk_level) + '12' }">
+                  <p class="cell-label">Risk Level (Final)</p>
+                  <p class="font-display text-2xl font-bold mt-0.5" :style="{ color: rulColor(analysis.prediction.risk_level) }">{{ analysis.prediction.risk_level }}</p>
+                  <p class="text-[11px] text-[color:var(--text-faint)] mt-0.5">Kelas {{ analysis.prediction.risk_class }} / 2</p>
+                </div>
+                <div class="rounded-xl p-4 border" :class="analysis.prediction.drift_status.drift_detected ? 'border-warning/40 bg-warning/10' : 'border-[color:var(--border)] bg-[color:var(--surface-2)]'">
+                  <p class="cell-label">Feature Drift</p>
+                  <p class="font-display text-2xl font-bold mt-0.5" :class="analysis.prediction.drift_status.drift_detected ? 'text-warning' : 'text-healthy'">
+                    {{ analysis.prediction.drift_status.drift_detected ? 'TERDETEKSI' : 'STABIL' }}
+                  </p>
+                  <p class="text-[11px] text-[color:var(--text-faint)] mt-0.5">z-max {{ analysis.prediction.drift_status.max_z_score }} · {{ analysis.prediction.drift_status.n_drifted }} fitur</p>
+                </div>
+              </div>
+
+              <!-- 3 komponen paling mendesak -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                <div v-for="c in urgentComponents" :key="c.label" class="rounded-xl p-4 border"
+                  :style="{ borderColor: rulTone(c.hours) + '66', background: rulTone(c.hours) + '14' }">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-[10px] font-bold uppercase tracking-wide" :style="{ color: rulTone(c.hours) }">{{ rulToneLabel(c.hours) }}</span>
+                  </div>
+                  <p class="font-semibold text-sm leading-tight">{{ c.label }}</p>
+                  <p class="font-display text-2xl font-bold mt-1" :style="{ color: rulTone(c.hours) }">{{ fmtHours(c.hours) }}</p>
+                </div>
+              </div>
+
+              <!-- RUL per komponen (7 LSTM) -->
+              <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)] mb-2">RUL per Komponen (LSTM)</p>
+              <div class="h-72"><canvas id="rulComponents"></canvas></div>
+
+              <!-- Digital twin -->
+              <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)] mt-5 mb-2">Digital Twin (Physics-based)</p>
+              <div class="grid grid-cols-3 gap-3">
+                <div v-for="d in digitalTwins" :key="d.label" class="cell">
+                  <p class="cell-label">{{ d.label }}</p>
+                  <p class="cell-val text-lg" :style="{ color: rulTone(d.hours) }">{{ d.hours }} <span class="text-xs font-normal">jam</span></p>
+                </div>
+              </div>
+
+              <!-- Daftar fitur drift -->
+              <div v-if="analysis.prediction.drift_status.drift_detected" class="mt-4 px-4 py-3 rounded-lg bg-warning/10 border border-warning/40">
+                <span class="font-semibold text-warning text-sm">⚠ Fitur ter-drift:</span>
+                <span class="font-mono text-xs text-[color:var(--text-muted)] ml-1">{{ analysis.prediction.drift_status.drifted_features.join(', ') }}</span>
+              </div>
             </div>
 
             <!-- Parameter Operasional & Lingkungan -->

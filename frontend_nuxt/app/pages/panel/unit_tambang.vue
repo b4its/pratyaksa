@@ -92,6 +92,7 @@ const onModelFileChange = async (e: Event) => {
 const { initAuth, user } = useAuth()
 const { isDark, toggleTheme, initTheme } = useTheme()
 const { createMap } = useFleetMap()
+const { resolveModel, modelForType } = useModels()
 const api = useApi()
 
 // ---- Peta sebaran sensor (koordinat riil unit) ----
@@ -196,7 +197,7 @@ const openAdd = () => {
     status: 'SEHAT', health: 100, maintenance: '', savings: 0,
     lat: -0.5032, lng: 117.1536,
     img_url: 'https://placehold.co/400x250?text=Unit+Baru',
-    model3d_url: 'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb'
+    model3d_url: modelForType(jenisOptions.value[0]?.nama)
   }
   model3dMode.value = 'link'
   modelFileName.value = ''
@@ -474,9 +475,8 @@ const exportCSV = () => {
           <div class="flex flex-col md:flex-row gap-6 mb-6">
             <div class="viewer-3d w-full md:w-1/2 rounded-xl border border-[color:var(--border)] bg-steel-gradient flex items-center justify-center min-h-[200px] relative overflow-hidden cursor-grab active:cursor-grabbing">
               <model-viewer
-                v-if="selectedUnit.model3d_url"
                 :key="selectedUnit.id"
-                :src="selectedUnit.model3d_url"
+                :src="resolveModel(selectedUnit.model3d_url, selectedUnit.jenis_alat_berat_nama)"
                 alt="Model 3D unit alat berat"
                 camera-controls
                 auto-rotate
@@ -489,10 +489,8 @@ const exportCSV = () => {
                 class="w-full h-full min-h-[200px] outline-none"
                 style="background-color:transparent;"
               ></model-viewer>
-              <img v-else-if="selectedUnit.img_url" :src="selectedUnit.img_url" class="w-full h-full object-cover" />
-              <span v-else class="text-graphite-300 font-medium">No Visual</span>
-              <div v-if="selectedUnit.model3d_url" class="absolute top-2 left-2 bg-steel/90 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full pointer-events-none">● LIVE 3D</div>
-              <div v-if="selectedUnit.model3d_url" class="absolute bottom-2 right-2 bg-graphite-900/80 text-graphite-100 text-[9px] font-medium px-2 py-0.5 rounded-full pointer-events-none">DRAG 360°</div>
+              <div class="absolute top-2 left-2 bg-steel/90 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full pointer-events-none">● LIVE 3D</div>
+              <div class="absolute bottom-2 right-2 bg-graphite-900/80 text-graphite-100 text-[9px] font-medium px-2 py-0.5 rounded-full pointer-events-none">DRAG 360°</div>
             </div>
             <div class="w-full md:w-1/2 flex flex-col gap-4 justify-center">
               <div><p class="label">Kode Unik</p><p class="text-2xl font-mono font-bold">{{ selectedUnit.code }}</p></div>

@@ -9,6 +9,7 @@ useHead({
 })
 
 const { createMap } = useFleetMap()
+const { resolveModel } = useModels()
 let leafletMap: any = null
 let fullMap: any = null
 const isMapFullscreen = ref(false)
@@ -418,7 +419,7 @@ watch(isDark, () => {
               <div v-if="featuredUnit" class="viewer-3d rounded-xl border border-[color:var(--border)] bg-steel-gradient shadow-elev-sm relative overflow-hidden h-[420px] cursor-grab active:cursor-grabbing">
                 <model-viewer
                   :key="featuredUnit.id"
-                  :src="featuredUnit.model3d_url || 'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb'"
+                  :src="resolveModel(featuredUnit.model3d_url, featuredUnit.jenis_alat_berat_nama)"
                   :alt="'Model 3D ' + featuredUnit.code"
                   camera-controls auto-rotate auto-rotate-delay="0" rotation-per-second="32deg"
                   shadow-intensity="1.5" exposure="1.15" environment-image="neutral" interaction-prompt="none"
@@ -459,7 +460,7 @@ watch(isDark, () => {
                   <div class="viewer-3d h-28 bg-steel-gradient relative overflow-hidden">
                     <model-viewer
                       :key="'mini-' + u.id"
-                      :src="u.model3d_url || 'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb'"
+                      :src="resolveModel(u.model3d_url, u.jenis_alat_berat_nama)"
                       :alt="'Model 3D ' + u.code"
                       auto-rotate auto-rotate-delay="0" rotation-per-second="40deg" disable-zoom interaction-prompt="none"
                       shadow-intensity="1" exposure="1.1" environment-image="neutral"

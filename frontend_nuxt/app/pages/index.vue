@@ -105,7 +105,7 @@
           <div class="viewer-3d rounded-2xl border border-white/10 bg-graphite-950/40 backdrop-blur-sm shadow-elev-lg relative overflow-hidden h-[340px] md:h-[460px] cursor-grab active:cursor-grabbing">
             <model-viewer
               v-if="isMounted"
-              src="https://modelviewer.dev/shared-assets/models/RobotExpressive.glb"
+              src="/media/models/dump_truck.glb"
               alt="Visual 3D armada Pratyaksa"
               camera-controls
               auto-rotate
@@ -217,7 +217,7 @@
             </div>
             <model-viewer
               v-if="isMounted"
-              src="https://modelviewer.dev/shared-assets/models/RobotExpressive.glb"
+              src="/media/models/bulldozer.glb"
               alt="Showcase 3D"
               camera-controls
               auto-rotate
