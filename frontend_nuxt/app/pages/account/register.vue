@@ -15,14 +15,9 @@
       <div class="p-8">
         <header class="mb-8 flex justify-between items-start gap-4">
           <div>
-            <div class="flex items-center gap-3 mb-5">
-              <div class="w-11 h-11 rounded-xl bg-amber-gradient flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(242,166,12,0.7)]">
-                <svg class="w-6 h-6 text-graphite-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>
-              </div>
-              <div>
-                <p class="font-display text-2xl font-bold tracking-wide leading-none">PRAT<span class="text-amber">YAKSA</span></p>
-                <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)] mt-1">Mining Intelligence</p>
-              </div>
+            <div class="mb-5">
+              <AppLogo height="2.75rem" />
+              <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)] mt-2">Mining Intelligence</p>
             </div>
             <h1 class="font-display text-4xl font-bold uppercase tracking-wide">Daftar</h1>
             <p class="text-[color:var(--text-muted)] text-sm mt-1">Buat akun baru untuk mengakses sistem.</p>

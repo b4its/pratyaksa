@@ -47,6 +47,9 @@ export default defineNuxtConfig({
     head: {
       title: 'Pratyaksa',
       link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'icon', type: 'image/png', sizes: '256x256', href: '/assets/pratyaksa_icon.png' },
+        { rel: 'apple-touch-icon', href: '/assets/pratyaksa_icon.png' },
         { rel: 'stylesheet', href: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' },
       ],
     },

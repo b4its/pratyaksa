@@ -103,9 +103,8 @@ services:
       # Backend untuk command /status (ringkasan fleet real-time)
       BACKEND_URL: ${BOT_BACKEND_URL:-http://backend:8080}
       # Base URL frontend untuk link "Buat Work Order" di pesan Telegram.
-      # Mengarah ke route /wo/create/{asset_id} yang dilayani frontend lewat Nginx.
-      # Set ke URL/host asli deploy kamu (mis. http://192.168.x.x atau domain real).
-      WO_LINK_BASE: ${WO_LINK_BASE:-http://localhost}
+      # WAJIB host ber-titik (IP/domain) — Telegram tidak me-link "localhost".
+      WO_LINK_BASE: ${WO_LINK_BASE:-http://10.40.2.117}
       # File persistensi daftar subscriber (chat_id yang sudah /start)
       SUBSCRIBERS_FILE: /app/data/subscribers.json
       RUST_LOG: ${RUST_LOG:-info}

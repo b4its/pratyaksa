@@ -14,6 +14,25 @@ pub mod alert {
 use alert::alert_service_server::{AlertService, AlertServiceServer};
 use alert::{AlertRequest, AlertResponse, HealthRequest, HealthResponse};
 
+/// Escape karakter spesial HTML agar parse_mode=HTML Telegram tidak rusak
+/// (mencegah pesan gagal terkirim / link tidak terbentuk).
+fn esc(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+}
+
+/// Normalisasi base URL Work Order agar selalu absolut (punya scheme http/https).
+/// URL relatif (tanpa scheme) TIDAK dijadikan link oleh Telegram → tampil teks biasa.
+fn normalize_base(raw: &str) -> String {
+    let t = raw.trim().trim_end_matches('/');
+    if t.is_empty() {
+        "http://localhost".to_string()
+    } else if t.starts_with("http://") || t.starts_with("https://") {
+        t.to_string()
+    } else {
+        format!("https://{t}")
+    }
+}
+
 /// Entri ringkas tiap unit di cache in-memory (pengganti Redis dari versi Python).
 #[derive(Clone)]
 struct FleetEntry {
@@ -39,7 +58,10 @@ struct AppState {
 impl AppState {
     /// Susun pesan alert HTML persis seperti format bot Python sebelumnya.
     fn build_alert_message(d: &AlertRequest, wo_base: &str) -> String {
-        let wo_link = format!("{}/wo/create/{}", wo_base.trim_end_matches('/'), d.asset_id);
+        // Pastikan base URL absolut (punya scheme) agar Telegram membuat link,
+        // bukan menampilkan teks biasa (URL relatif/ tanpa scheme tidak di-link).
+        let base = normalize_base(wo_base);
+        let wo_link = format!("{}/wo/create/{}", base, esc(&d.asset_id));
         format!(
             "🚨 <b>[URGENT ALARM : PRATYAKSA]</b> 🚨\n\n\
              🚜 <b>Unit:</b> {asset} ({model})\n\
@@ -55,16 +77,16 @@ impl AppState {
              - Part No: {part_no}\n\
              - Stok Workshop: {stok} Unit\n\n\
              🔗 <a href=\"{wo_link}\">Buat Work Order</a>",
-            asset = d.asset_id,
-            model = d.model,
-            lokasi = d.lokasi,
-            status = d.status,
-            rul = d.rul,
-            shap1 = d.shap1,
-            shap2 = d.shap2,
-            part_name = d.part_name,
-            part_no = d.part_no,
-            stok = d.stok,
+            asset = esc(&d.asset_id),
+            model = esc(&d.model),
+            lokasi = esc(&d.lokasi),
+            status = esc(&d.status),
+            rul = esc(&d.rul),
+            shap1 = esc(&d.shap1),
+            shap2 = esc(&d.shap2),
+            part_name = esc(&d.part_name),
+            part_no = esc(&d.part_no),
+            stok = esc(&d.stok),
             wo_link = wo_link,
         )
     }
@@ -385,6 +407,9 @@ impl AlertService for BotGrpc {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Muat variabel dari file .env bila ada (untuk menjalankan secara lokal)
+    let _ = dotenvy::dotenv();
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()

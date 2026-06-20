@@ -142,47 +142,10 @@ const formatDate = (iso: string) => new Date(iso).toLocaleDateString('id-ID', { 
   <div class="flex h-screen overflow-hidden bg-mesh text-[color:var(--text)]">
 
     <!-- Sidebar -->
-    <aside class="w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)] p-5 flex flex-col justify-between z-10 shrink-0 h-screen overflow-y-auto">
-      <div>
-        <div class="flex items-center gap-3 mb-9 px-1">
-          <div class="w-11 h-11 rounded-xl bg-amber-gradient flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(242,166,12,0.7)]">
-            <svg class="w-6 h-6 text-graphite-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>
-          </div>
-          <div>
-            <p class="font-display text-xl font-bold tracking-wide leading-none">PRAT<span class="text-amber">YAKSA</span></p>
-            <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-faint)] mt-1">Control Panel</p>
-          </div>
-        </div>
-        <nav class="space-y-1.5">
-          <NuxtLink v-for="item in menuItems" :key="item.name" :to="item.path"
-            @click="activeMenu = item.name"
-            :class="['nav-link', activeMenu === item.name ? 'nav-link-active' : '']">
-            <span class="flex items-center justify-center shrink-0" v-html="item.icon"></span>
-            <span class="truncate">{{ item.name }}</span>
-          </NuxtLink>
-        </nav>
-      </div>
-      <div class="space-y-2">
-        <button @click="toggleTheme" class="theme-toggle" aria-label="Ganti tema">
-          <span class="flex items-center gap-2.5 font-semibold text-sm">
-            <svg v-if="isDark" class="w-4 h-4 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-            <svg v-else class="w-4 h-4 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-            {{ isDark ? 'Mode Gelap' : 'Mode Terang' }}
-          </span>
-          <span class="tt-switch" :class="{ 'tt-on': isDark }"><span class="tt-knob"></span></span>
-        </button>
-        <div class="panel-flat p-4">
-          <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)]">Logged in as</p>
-          <div class="flex items-center gap-3 mt-2">
-            <div class="w-9 h-9 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-sm">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
-            <p class="font-semibold text-sm truncate">{{ user?.name || 'Admin' }}</p>
-          </div>
-        </div>
-      </div>
-    </aside>
+    <PanelSidebar />
 
     <!-- Main -->
-    <main class="flex-1 p-8 overflow-y-auto">
+    <main class="flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-8 pt-16 lg:pt-8 overflow-y-auto">
       <header class="flex justify-between items-start mb-8 gap-4 flex-wrap">
         <div>
           <h1 class="font-display text-4xl md:text-5xl font-bold uppercase tracking-wide leading-none">Jenis Alat Berat</h1>
@@ -214,6 +177,7 @@ const formatDate = (iso: string) => new Date(iso).toLocaleDateString('id-ID', { 
 
       <!-- Table -->
       <section class="panel-raised overflow-hidden">
+        <div class="overflow-x-auto">
         <table class="table-industrial">
           <thead>
             <tr>
@@ -245,6 +209,7 @@ const formatDate = (iso: string) => new Date(iso).toLocaleDateString('id-ID', { 
             </tr>
           </tbody>
         </table>
+        </div>
 
         <!-- Pagination -->
         <div class="px-5 py-4 border-t border-[color:var(--border)] bg-[color:var(--surface-2)] flex justify-between items-center flex-wrap gap-3">

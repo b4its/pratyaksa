@@ -197,6 +197,10 @@ export const useApi = () => {
       return await $fetch(`${baseURL}/work-orders${qs}`, { headers: getAuthHeaders() })
     },
 
+    async getWorkOrder(id: string) {
+      return await $fetch(`${baseURL}/work-orders/${id}`, { headers: getAuthHeaders() })
+    },
+
     async createWorkOrder(body: {
       asset_code: string
       equipment_type?: string

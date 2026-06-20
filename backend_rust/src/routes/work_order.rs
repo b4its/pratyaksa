@@ -159,7 +159,23 @@ pub async fn get_by_id(
     .await?
     .ok_or_else(|| AppError::NotFound(format!("Work order {} tidak ditemukan", id)))?;
 
-    Ok(HttpResponse::Ok().json(serde_json::json!({ "status": "success", "data": item })))
+    // Ambil data unit tambang terkait (by code) agar detail WO lengkap
+    let unit = sqlx::query_as::<_, crate::models::unit_tambang::UnitTambang>(
+        r#"
+        SELECT u.*, j.nama as jenis_alat_berat_nama
+        FROM unit_tambang u
+        LEFT JOIN jenis_alat_berat j ON u.jenis_alat_berat_id = j.id
+        WHERE u.code ILIKE $1
+        "#,
+    )
+    .bind(&item.asset_code)
+    .fetch_optional(&db.pool)
+    .await?;
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "status": "success",
+        "data": { "work_order": item, "unit": unit }
+    })))
 }
 
 pub async fn update(
@@ -216,6 +232,23 @@ pub async fn update(
     .bind(id)
     .fetch_one(&db.pool)
     .await?;
+
+    // Saat WO selesai → unit tambang otomatis kembali SEHAT.
+    if wo_status == "COMPLETED" {
+        sqlx::query(
+            r#"
+            UPDATE unit_tambang
+            SET status = 'SEHAT',
+                health = GREATEST(health, 92),
+                maintenance = 'Selesai Perbaikan',
+                updated_at = NOW()
+            WHERE code ILIKE $1
+            "#,
+        )
+        .bind(&item.asset_code)
+        .execute(&db.pool)
+        .await?;
+    }
 
     Ok(HttpResponse::Ok().json(serde_json::json!({ "status": "success", "data": item })))
 }

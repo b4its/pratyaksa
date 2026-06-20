@@ -153,11 +153,135 @@ const updateWoStatus = async (id: string, wo_status: string) => {
 
 const fetchWorkOrders = async () => {
   try {
-    const res: any = await api.getWorkOrders({ per_page: 50 })
+    const res: any = await api.getWorkOrders({ per_page: 500 })
     savedWorkOrders.value = res?.data?.data || []
   } catch {
     // diamkan jika belum login / belum ada data
   }
+}
+
+// --- Saved WO: pencarian + pagination + export + detail ---
+const woSearch = ref('')
+const woPage = ref(1)
+const woPerPage = 5
+
+const filteredSavedWo = computed(() => {
+  const q = woSearch.value.trim().toLowerCase()
+  if (!q) return savedWorkOrders.value
+  return savedWorkOrders.value.filter((wo: any) =>
+    [wo.wo_number, wo.asset_code, wo.equipment_type, wo.component, wo.technician, wo.wo_status, wo.priority, wo.status_unit]
+      .filter(Boolean)
+      .some((v: string) => String(v).toLowerCase().includes(q)),
+  )
+})
+const woTotalPages = computed(() => Math.max(1, Math.ceil(filteredSavedWo.value.length / woPerPage)))
+const pagedSavedWo = computed(() => {
+  const start = (woPage.value - 1) * woPerPage
+  return filteredSavedWo.value.slice(start, start + woPerPage)
+})
+watch([woSearch, () => savedWorkOrders.value.length], () => {
+  if (woPage.value > woTotalPages.value) woPage.value = woTotalPages.value
+})
+
+// Detail WO tersimpan (lengkap + data unit terkait)
+const { createMap } = useFleetMap()
+let woMap: any = null
+const woDetailOpen = ref(false)
+const woDetail = ref<any>(null)
+const woDetailLoading = ref(false)
+
+const renderWoMap = async () => {
+  const u = woDetail.value?.unit
+  if (!u || u.lat == null || u.lng == null) return
+  await nextTick()
+  if (woMap) { try { woMap.remove() } catch {} woMap = null }
+  woMap = await createMap('wo-detail-map', [{
+    unit: u.code,
+    unit_type: u.jenis_alat_berat_nama || 'Heavy Equipment',
+    status: u.status,
+    color_hex: statusColor(u.status),
+    level: (u.status || '•').charAt(0),
+    lat: u.lat,
+    lng: u.lng,
+    health: u.health,
+  }], { zoom: 14, dark: isDark.value })
+}
+
+const openWoDetail = async (id: string) => {
+  woDetailOpen.value = true
+  woDetailLoading.value = true
+  woDetail.value = null
+  if (woMap) { try { woMap.remove() } catch {} woMap = null }
+  try {
+    const res: any = await api.getWorkOrder(id)
+    woDetail.value = res?.data || null
+  } catch (e: any) {
+    showToast(false, e?.data?.message || 'Gagal memuat detail Work Order.')
+    woDetailOpen.value = false
+  } finally {
+    woDetailLoading.value = false
+  }
+  await nextTick()
+  renderWoMap()
+}
+const closeWoDetail = () => {
+  woDetailOpen.value = false
+  if (woMap) { try { woMap.remove() } catch {} woMap = null }
+}
+
+// --- Export CSV & Excel ---
+const EXPORT_COLUMNS: { key: string; label: string }[] = [
+  { key: 'wo_number', label: 'WO Number' },
+  { key: 'asset_code', label: 'Unit' },
+  { key: 'equipment_type', label: 'Equipment' },
+  { key: 'status_unit', label: 'Status Unit' },
+  { key: 'priority', label: 'Prioritas' },
+  { key: 'component', label: 'Komponen' },
+  { key: 'part_no', label: 'Part No' },
+  { key: 'rul_hours', label: 'RUL (jam)' },
+  { key: 'est_cost', label: 'Est. Biaya (Rp)' },
+  { key: 'technician', label: 'Teknisi' },
+  { key: 'scheduled_at', label: 'Mulai Perbaikan' },
+  { key: 'est_completion_at', label: 'Est. Selesai' },
+  { key: 'wo_status', label: 'Status WO' },
+  { key: 'notes', label: 'Catatan' },
+  { key: 'created_at', label: 'Dibuat' },
+]
+const cellValue = (wo: any, key: string) => {
+  const v = wo[key]
+  if (v == null) return ''
+  if (key.endsWith('_at')) return fmtDateLong(v)
+  return String(v)
+}
+const downloadBlob = (content: string, mime: string, filename: string) => {
+  const blob = new Blob([content], { type: mime })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+const exportCsv = () => {
+  const rows = filteredSavedWo.value
+  const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`
+  const header = EXPORT_COLUMNS.map(c => esc(c.label)).join(',')
+  const body = rows.map((wo: any) => EXPORT_COLUMNS.map(c => esc(cellValue(wo, c.key))).join(',')).join('\n')
+  const stamp = new Date().toISOString().slice(0, 10)
+  downloadBlob('\uFEFF' + header + '\n' + body, 'text/csv;charset=utf-8;', `work-orders-${stamp}.csv`)
+}
+const exportExcel = () => {
+  const rows = filteredSavedWo.value
+  const esc = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const head = '<tr>' + EXPORT_COLUMNS.map(c => `<th style="background:#1d242e;color:#fff;padding:6px;border:1px solid #ccc">${esc(c.label)}</th>`).join('') + '</tr>'
+  const body = rows.map((wo: any) =>
+    '<tr>' + EXPORT_COLUMNS.map(c => `<td style="padding:6px;border:1px solid #ccc">${esc(cellValue(wo, c.key))}</td>`).join('') + '</tr>',
+  ).join('')
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"></head><body><table>${head}${body}</table></body></html>`
+  const stamp = new Date().toISOString().slice(0, 10)
+  downloadBlob(html, 'application/vnd.ms-excel', `work-orders-${stamp}.xls`)
 }
 
 const ATRISK = ['CRITICAL', 'WARNING', 'RUSAK']
@@ -282,6 +406,18 @@ const fetchData = async () => {
 const filteredItems = computed(() =>
   statusFilter.value === 'ALL' ? items.value : items.value.filter(it => it.status === statusFilter.value))
 
+// Pagination daftar work order (unit berisiko) — tampilkan 5 per halaman
+const itemsPage = ref(1)
+const itemsPerPage = 5
+const itemsTotalPages = computed(() => Math.max(1, Math.ceil(filteredItems.value.length / itemsPerPage)))
+const pagedItems = computed(() => {
+  const start = (itemsPage.value - 1) * itemsPerPage
+  return filteredItems.value.slice(start, start + itemsPerPage)
+})
+watch([statusFilter, () => filteredItems.value.length], () => {
+  if (itemsPage.value > itemsTotalPages.value) itemsPage.value = itemsTotalPages.value
+})
+
 const selected = computed(() => items.value.find(it => it.code === selectedCode.value) || null)
 
 const kpiCritical = computed(() => items.value.filter(i => i.status === 'CRITICAL').length)
@@ -334,6 +470,31 @@ const upsertChart = (key: string, canvasId: string, config: any) => {
   }
 }
 
+// Plugin: tampilkan angka nilai pada tiap arc doughnut secara permanen (tanpa hover).
+// Tooltip (hover) tetap aktif untuk detail.
+const arcValueLabels = {
+  id: 'arcValueLabels',
+  afterDatasetsDraw(chart: any) {
+    const { ctx } = chart
+    const meta = chart.getDatasetMeta(0)
+    const ds = chart.data.datasets[0]?.data || []
+    meta.data.forEach((arc: any, i: number) => {
+      const val = ds[i]
+      if (!val) return
+      const pos = arc.tooltipPosition()
+      ctx.save()
+      ctx.fillStyle = '#ffffff'
+      ctx.font = 'bold 14px Inter, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.shadowColor = 'rgba(0,0,0,0.35)'
+      ctx.shadowBlur = 3
+      ctx.fillText(String(val), pos.x, pos.y)
+      ctx.restore()
+    })
+  },
+}
+
 const renderFleetCharts = () => {
   const t = theme()
   const list = items.value
@@ -349,6 +510,7 @@ const renderFleetCharts = () => {
         borderWidth: 0,
       }],
     },
+    plugins: [arcValueLabels],
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '62%',
       plugins: { legend: { position: 'bottom', labels: { color: t.text, font: { size: 11 } } } },
@@ -363,6 +525,7 @@ const renderFleetCharts = () => {
       labels: ['High', 'Medium', 'Low'],
       datasets: [{ data: prio, backgroundColor: ['#E0413E', '#E0A106', '#3E92CC'], borderWidth: 0 }],
     },
+    plugins: [arcValueLabels],
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '62%',
       plugins: { legend: { position: 'bottom', labels: { color: t.text, font: { size: 11 } } } },
@@ -517,6 +680,19 @@ onMounted(async () => {
   renderAll()
   fetchWorkOrders()
 
+  // Jika dibuka dari link Telegram (?asset=KODE), langsung buka modal Buat Work Order
+  // untuk unit tersebut alih-alih hanya menampilkan halaman daftar.
+  const assetQuery = route.query.asset ? String(route.query.asset) : null
+  if (assetQuery) {
+    const target = items.value.find(it => it.code.toLowerCase() === assetQuery.toLowerCase())
+    if (target) {
+      selectedCode.value = target.code
+      await nextTick()
+      renderDetailCharts()
+      openModal(target)
+    }
+  }
+
   refreshTimer = setInterval(() => {
     if (autoRefresh.value) refreshAll()
   }, 15000)
@@ -538,46 +714,10 @@ watch(isDark, () => { nextTick(() => renderAll()) })
 <template>
   <div class="flex h-screen overflow-hidden bg-mesh text-[color:var(--text)]">
     <!-- Sidebar -->
-    <aside class="w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)] p-5 flex flex-col justify-between z-10 shrink-0 h-screen overflow-y-auto">
-      <div>
-        <div class="flex items-center gap-3 mb-9 px-1">
-          <div class="w-11 h-11 rounded-xl bg-amber-gradient flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(242,166,12,0.7)]">
-            <svg class="w-6 h-6 text-graphite-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>
-          </div>
-          <div>
-            <p class="font-display text-xl font-bold tracking-wide leading-none">PRAT<span class="text-amber">YAKSA</span></p>
-            <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-faint)] mt-1">Control Panel</p>
-          </div>
-        </div>
-        <nav class="space-y-1.5">
-          <NuxtLink v-for="item in menuItems" :key="item.name" :to="item.path" @click="activeMenu = item.name"
-            :class="['nav-link', activeMenu === item.name ? 'nav-link-active' : '']">
-            <span class="flex items-center justify-center shrink-0" v-html="item.icon"></span>
-            <span class="truncate">{{ item.name }}</span>
-          </NuxtLink>
-        </nav>
-      </div>
-      <div class="space-y-2">
-        <button @click="toggleTheme" class="theme-toggle" aria-label="Ganti tema">
-          <span class="flex items-center gap-2.5 font-semibold text-sm">
-            <svg v-if="isDark" class="w-4 h-4 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-            <svg v-else class="w-4 h-4 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-            {{ isDark ? 'Mode Gelap' : 'Mode Terang' }}
-          </span>
-          <span class="tt-switch" :class="{ 'tt-on': isDark }"><span class="tt-knob"></span></span>
-        </button>
-        <div class="panel-flat p-4">
-          <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)]">Logged in as</p>
-          <div class="flex items-center gap-3 mt-2">
-            <div class="w-9 h-9 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-sm">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
-            <p class="font-semibold text-sm truncate">{{ user?.name || 'Admin' }}</p>
-          </div>
-        </div>
-      </div>
-    </aside>
+    <PanelSidebar />
 
     <!-- Main -->
-    <main class="flex-1 p-8 overflow-y-auto">
+    <main class="flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-8 pt-16 lg:pt-8 overflow-y-auto">
       <header class="flex justify-between items-start mb-8 flex-wrap gap-4">
         <div>
           <h1 class="font-display text-4xl md:text-5xl font-bold uppercase tracking-wide leading-none">Work Order</h1>
@@ -672,7 +812,7 @@ watch(isDark, () => { nextTick(() => renderAll()) })
               </div>
             </div>
             <div class="overflow-x-auto">
-              <table class="w-full text-sm">
+              <table class="w-full text-sm min-w-[720px]">
                 <thead>
                   <tr class="text-left text-[10px] uppercase tracking-wider text-[color:var(--text-muted)] border-b border-[color:var(--border)]">
                     <th class="py-2.5 pr-3">WO ID</th>
@@ -687,7 +827,7 @@ watch(isDark, () => { nextTick(() => renderAll()) })
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="it in filteredItems" :key="it.id"
+                  <tr v-for="it in pagedItems" :key="it.id"
                     @click="selectUnit(it.code)"
                     :class="['border-b border-[color:var(--border)] cursor-pointer hover:bg-[color:var(--surface-2)] transition-colors', selectedCode === it.code ? 'bg-[color:var(--surface-2)]' : '']">
                     <td class="py-2.5 pr-3 font-mono text-[11px]">{{ it.woId }}</td>
@@ -706,8 +846,24 @@ watch(isDark, () => { nextTick(() => renderAll()) })
                       <button @click.stop="openModal(it)" class="btn btn-ghost !py-1.5 !px-3 text-[11px] text-steel">Detail</button>
                     </td>
                   </tr>
+                  <tr v-if="!filteredItems.length">
+                    <td colspan="9" class="py-6 text-center text-[color:var(--text-muted)]">Tidak ada unit berisiko untuk filter ini.</td>
+                  </tr>
                 </tbody>
               </table>
+            </div>
+            <!-- Pagination -->
+            <div v-if="itemsTotalPages > 1" class="flex items-center justify-between mt-4">
+              <p class="text-xs text-[color:var(--text-muted)]">
+                Menampilkan {{ pagedItems.length }} dari {{ filteredItems.length }} unit
+              </p>
+              <div class="flex items-center gap-1.5">
+                <button @click="itemsPage = Math.max(1, itemsPage - 1)" :disabled="itemsPage === 1"
+                  class="btn btn-ghost !py-1.5 !px-3 text-[11px] disabled:opacity-40">‹ Prev</button>
+                <span class="text-xs font-mono px-2">{{ itemsPage }} / {{ itemsTotalPages }}</span>
+                <button @click="itemsPage = Math.min(itemsTotalPages, itemsPage + 1)" :disabled="itemsPage === itemsTotalPages"
+                  class="btn btn-ghost !py-1.5 !px-3 text-[11px] disabled:opacity-40">Next ›</button>
+              </div>
             </div>
           </div>
 
@@ -768,9 +924,26 @@ watch(isDark, () => { nextTick(() => renderAll()) })
 
           <!-- Work Order Tersimpan (dari database) -->
           <div v-if="savedWorkOrders.length" class="panel-flat p-5 mb-6">
-            <h3 class="font-display text-xl font-bold uppercase tracking-wide mb-4">Work Order Tersimpan</h3>
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <h3 class="font-display text-xl font-bold uppercase tracking-wide">Work Order Tersimpan</h3>
+              <div class="flex items-center gap-2 flex-wrap">
+                <div class="relative">
+                  <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                  <input v-model="woSearch" type="text" placeholder="Cari WO / unit / komponen…"
+                    class="pl-9 pr-3 py-2 rounded-xl bg-[color:var(--surface-2)] border border-[color:var(--border)] text-sm focus:outline-none focus:border-amber w-60" />
+                </div>
+                <button @click="exportCsv" class="btn btn-ghost !py-2 !px-3 text-[11px] font-semibold">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  CSV
+                </button>
+                <button @click="exportExcel" class="btn btn-ghost !py-2 !px-3 text-[11px] font-semibold text-healthy">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Excel
+                </button>
+              </div>
+            </div>
             <div class="overflow-x-auto">
-              <table class="w-full text-sm">
+              <table class="w-full text-sm min-w-[760px]">
                 <thead>
                   <tr class="text-left text-[10px] uppercase tracking-wider text-[color:var(--text-muted)] border-b border-[color:var(--border)]">
                     <th class="py-2.5 pr-3">WO Number</th>
@@ -784,7 +957,7 @@ watch(isDark, () => { nextTick(() => renderAll()) })
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="wo in savedWorkOrders" :key="wo.id" class="border-b border-[color:var(--border)]">
+                  <tr v-for="wo in pagedSavedWo" :key="wo.id" class="border-b border-[color:var(--border)] hover:bg-[color:var(--surface-2)] transition-colors">
                     <td class="py-2.5 pr-3 font-mono text-[11px]">{{ wo.wo_number }}</td>
                     <td class="py-2.5 pr-3 font-semibold">{{ wo.asset_code }}</td>
                     <td class="py-2.5 pr-3">{{ wo.component }}</td>
@@ -797,12 +970,29 @@ watch(isDark, () => { nextTick(() => renderAll()) })
                       <span class="px-2 py-0.5 rounded-full text-[10px] font-bold text-white" :style="{ background: woStatusColor(wo.wo_status) }">{{ wo.wo_status }}</span>
                     </td>
                     <td class="py-2.5 text-right whitespace-nowrap">
+                      <button @click="openWoDetail(wo.id)" class="btn btn-ghost !py-1 !px-2 text-[10px] text-steel">Detail</button>
                       <button v-if="wo.wo_status === 'OPEN'" @click="updateWoStatus(wo.id, 'IN_PROGRESS')" class="btn btn-ghost !py-1 !px-2 text-[10px] text-warning">Mulai</button>
                       <button v-if="wo.wo_status === 'IN_PROGRESS'" @click="updateWoStatus(wo.id, 'COMPLETED')" class="btn btn-ghost !py-1 !px-2 text-[10px] text-healthy">Selesai</button>
                     </td>
                   </tr>
+                  <tr v-if="!filteredSavedWo.length">
+                    <td colspan="8" class="py-6 text-center text-[color:var(--text-muted)]">Tidak ada WO yang cocok dengan pencarian.</td>
+                  </tr>
                 </tbody>
               </table>
+            </div>
+            <!-- Pagination -->
+            <div v-if="woTotalPages > 1" class="flex items-center justify-between mt-4">
+              <p class="text-xs text-[color:var(--text-muted)]">
+                Menampilkan {{ pagedSavedWo.length }} dari {{ filteredSavedWo.length }} WO
+              </p>
+              <div class="flex items-center gap-1.5">
+                <button @click="woPage = Math.max(1, woPage - 1)" :disabled="woPage === 1"
+                  class="btn btn-ghost !py-1.5 !px-3 text-[11px] disabled:opacity-40">‹ Prev</button>
+                <span class="text-xs font-mono px-2">{{ woPage }} / {{ woTotalPages }}</span>
+                <button @click="woPage = Math.min(woTotalPages, woPage + 1)" :disabled="woPage === woTotalPages"
+                  class="btn btn-ghost !py-1.5 !px-3 text-[11px] disabled:opacity-40">Next ›</button>
+              </div>
             </div>
           </div>
         </template>
@@ -958,6 +1148,85 @@ watch(isDark, () => { nextTick(() => renderAll()) })
           </div>
         </Transition>
       </Teleport>
+
+      <!-- ===== MODAL DETAIL WORK ORDER TERSIMPAN ===== -->
+      <Teleport to="body">
+        <Transition name="wo-fade">
+          <div v-if="woDetailOpen" class="wo-modal-backdrop" @click.self="closeWoDetail">
+            <Transition name="wo-pop" appear>
+              <div class="wo-modal panel-raised" v-if="woDetailOpen">
+                <div class="flex items-start justify-between gap-4 p-6 border-b border-[color:var(--border)]">
+                  <div>
+                    <p class="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">Detail Work Order Tersimpan</p>
+                    <h2 class="font-display text-2xl font-bold tracking-wide">{{ woDetail?.work_order?.wo_number || '—' }}</h2>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span v-if="woDetail?.work_order" class="px-3 py-1 rounded-full text-xs font-bold text-white" :style="{ background: woStatusColor(woDetail.work_order.wo_status) }">{{ woDetail.work_order.wo_status }}</span>
+                    <button @click="closeWoDetail" class="btn btn-ghost !p-2" aria-label="Tutup">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="p-6 overflow-y-auto wo-modal-body">
+                  <div v-if="woDetailLoading" class="py-12 text-center text-[color:var(--text-muted)] uppercase tracking-widest text-sm">Memuat detail…</div>
+
+                  <template v-else-if="woDetail?.work_order">
+                    <!-- Data Work Order -->
+                    <h3 class="font-display text-lg font-bold uppercase tracking-wide mb-3">Data Work Order</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+                      <div class="panel-flat p-3"><p class="wo-k">Prioritas</p><p class="wo-v">{{ woDetail.work_order.priority }}</p></div>
+                      <div class="panel-flat p-3"><p class="wo-k">Status Unit (saat dibuat)</p><p class="wo-v">{{ woDetail.work_order.status_unit }}</p></div>
+                      <div class="panel-flat p-3"><p class="wo-k">Komponen</p><p class="wo-v">{{ woDetail.work_order.component }}</p></div>
+                      <div class="panel-flat p-3"><p class="wo-k">Part No</p><p class="wo-v">{{ woDetail.work_order.part_no || '—' }}</p></div>
+                      <div class="panel-flat p-3"><p class="wo-k">RUL (jam)</p><p class="wo-v">{{ woDetail.work_order.rul_hours }}</p></div>
+                      <div class="panel-flat p-3"><p class="wo-k">Estimasi Biaya</p><p class="wo-v text-amber">{{ fmtRupiah(woDetail.work_order.est_cost) }}</p></div>
+                      <div class="panel-flat p-3"><p class="wo-k">Teknisi</p><p class="wo-v">{{ woDetail.work_order.technician || '—' }}</p></div>
+                      <div class="panel-flat p-3"><p class="wo-k">Mulai Perbaikan</p><p class="wo-v text-sm">{{ woDetail.work_order.scheduled_at ? fmtDateLong(woDetail.work_order.scheduled_at) : '—' }}</p></div>
+                      <div class="panel-flat p-3"><p class="wo-k">Estimasi Selesai</p><p class="wo-v text-sm">{{ woDetail.work_order.est_completion_at ? fmtDateLong(woDetail.work_order.est_completion_at) : '—' }}</p></div>
+                      <div class="panel-flat p-3"><p class="wo-k">Feedback</p><p class="wo-v">{{ woDetail.work_order.feedback || '—' }}</p></div>
+                      <div class="panel-flat p-3"><p class="wo-k">Dibuat</p><p class="wo-v text-sm">{{ fmtDateLong(woDetail.work_order.created_at) }}</p></div>
+                      <div class="panel-flat p-3"><p class="wo-k">Diperbarui</p><p class="wo-v text-sm">{{ fmtDateLong(woDetail.work_order.updated_at) }}</p></div>
+                    </div>
+                    <div v-if="woDetail.work_order.notes" class="panel-flat p-4 mb-6">
+                      <p class="wo-k mb-1">Catatan</p>
+                      <p class="text-sm">{{ woDetail.work_order.notes }}</p>
+                    </div>
+
+                    <!-- Data Unit Terkait -->
+                    <h3 class="font-display text-lg font-bold uppercase tracking-wide mb-3">Unit Terkait</h3>
+                    <div v-if="woDetail.unit" class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      <div class="panel-flat p-3"><p class="wo-k">Kode Unit</p><p class="wo-v">{{ woDetail.unit.code }}</p></div>
+                      <div class="panel-flat p-3"><p class="wo-k">Jenis Alat Berat</p><p class="wo-v text-sm">{{ woDetail.unit.jenis_alat_berat_nama || '—' }}</p></div>
+                      <div class="panel-flat p-3">
+                        <p class="wo-k">Status Unit Saat Ini</p>
+                        <p class="wo-v"><span class="px-2 py-0.5 rounded-full text-[11px] font-bold text-white" :style="{ background: statusColor(woDetail.unit.status) }">{{ woDetail.unit.status }}</span></p>
+                      </div>
+                      <div class="panel-flat p-3"><p class="wo-k">Health</p><p class="wo-v">{{ woDetail.unit.health }}%</p></div>
+                      <div class="panel-flat p-3"><p class="wo-k">Maintenance</p><p class="wo-v text-sm">{{ woDetail.unit.maintenance }}</p></div>
+                      <div class="panel-flat p-3"><p class="wo-k">Savings</p><p class="wo-v">{{ fmtRupiahShort(woDetail.unit.savings) }}</p></div>
+                      <div v-if="woDetail.unit.lat && woDetail.unit.lng" class="panel-flat p-3"><p class="wo-k">Lokasi</p><p class="wo-v text-sm font-mono">{{ woDetail.unit.lat.toFixed(4) }}, {{ woDetail.unit.lng.toFixed(4) }}</p></div>
+                    </div>
+                    <!-- Peta lokasi unit -->
+                    <div v-if="woDetail.unit && woDetail.unit.lat && woDetail.unit.lng" class="mt-4">
+                      <p class="wo-k mb-1.5">Peta Lokasi Unit</p>
+                      <div id="wo-detail-map" class="w-full h-64 rounded-xl overflow-hidden border border-[color:var(--border)] z-0"></div>
+                    </div>
+                    <div v-if="!woDetail.unit" class="panel-flat p-4 text-sm text-[color:var(--text-muted)]">Unit dengan kode {{ woDetail.work_order.asset_code }} tidak ditemukan di basis data unit.</div>
+
+                    <!-- Aksi status -->
+                    <div class="flex justify-end gap-2 mt-6">
+                      <button v-if="woDetail.work_order.wo_status === 'OPEN'" @click="updateWoStatus(woDetail.work_order.id, 'IN_PROGRESS').then(() => openWoDetail(woDetail.work_order.id))" class="btn !py-2.5 text-sm border-warning/50 text-warning bg-warning/10">Mulai Perbaikan</button>
+                      <button v-if="woDetail.work_order.wo_status === 'IN_PROGRESS'" @click="updateWoStatus(woDetail.work_order.id, 'COMPLETED').then(() => openWoDetail(woDetail.work_order.id))" class="btn !py-2.5 text-sm bg-healthy text-white border-healthy font-bold">Tandai Selesai (Unit → Sehat)</button>
+                      <button @click="closeWoDetail" class="btn btn-ghost !py-2.5 text-sm">Tutup</button>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </Transition>
+          </div>
+        </Transition>
+      </Teleport>
     </main>
   </div>
 </template>
@@ -1011,4 +1280,8 @@ watch(isDark, () => { nextTick(() => renderAll()) })
 .wo-fade-enter-from, .wo-fade-leave-to { opacity: 0; }
 .wo-pop-enter-active { transition: transform 0.28s cubic-bezier(0.22,1,0.36,1), opacity 0.28s ease; }
 .wo-pop-enter-from { transform: translateY(16px) scale(0.96); opacity: 0; }
+
+/* Key-value di modal detail */
+.wo-k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #5d6b7a); margin-bottom: 2px; }
+.wo-v { font-weight: 700; }
 </style>

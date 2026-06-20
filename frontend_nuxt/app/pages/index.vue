@@ -2,12 +2,9 @@
   <div class="min-h-screen text-[color:var(--text)] bg-[color:var(--bg)] selection:bg-amber selection:text-graphite-900 font-sans transition-colors duration-500 overflow-x-clip">
 
     <!-- NAV -->
-    <nav class="sticky top-0 z-50 bg-[color:var(--surface)]/85 backdrop-blur-md border-b border-[color:var(--border)] px-6 py-3.5 flex justify-between items-center w-full transition-colors duration-500">
-      <div class="flex items-center gap-2.5 cursor-pointer group">
-        <div class="w-9 h-9 rounded-lg bg-amber-gradient flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(242,166,12,0.7)] group-hover:scale-105 transition-transform">
-          <svg class="w-5 h-5 text-graphite-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>
-        </div>
-        <p class="font-display text-2xl font-bold tracking-wide">PRAT<span class="text-amber">YAKSA</span></p>
+    <nav ref="navEl" :class="navOnDark ? 'nav-bar--dark' : 'nav-bar--light'" class="nav-bar sticky top-0 z-50 backdrop-blur-md border-b px-6 py-3.5 flex justify-between items-center w-full transition-colors duration-500">
+      <div class="flex items-center cursor-pointer group">
+        <AppLogo height="2.25rem" :on-dark="navOnDark" class="group-hover:scale-105 transition-transform" />
       </div>
 
       <div class="xl:hidden flex gap-2">
@@ -21,7 +18,7 @@
         </button>
       </div>
 
-      <div class="hidden xl:flex gap-7 font-semibold items-center text-sm text-[color:var(--text-muted)]">
+      <div class="hidden xl:flex gap-7 font-semibold items-center text-sm">
         <a href="#tentang" class="hover:text-amber transition-colors">Tentang Kami</a>
         <a href="#solusi" class="hover:text-amber transition-colors">Solusi Pratyaksa</a>
         <a href="#keunggulan" class="hover:text-amber transition-colors">Keunggulan</a>
@@ -36,7 +33,7 @@
         <template v-if="isAuthenticated">
           <div class="flex items-center gap-2.5 pl-1 pr-3 py-1.5 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)]">
             <div class="w-8 h-8 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-xs">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
-            <span class="font-semibold text-sm max-w-[120px] truncate">{{ user?.name || 'Operator' }}</span>
+            <span class="font-semibold text-sm max-w-[120px] truncate text-[color:var(--text)]">{{ user?.name || 'Operator' }}</span>
           </div>
           <NuxtLink to="panel/dashboard" class="btn btn-amber px-6">Buka Dashboard →</NuxtLink>
           <button @click="logout" aria-label="Keluar" class="btn btn-ghost !p-2.5" title="Keluar">
@@ -72,9 +69,15 @@
     </div>
 
     <!-- HERO -->
-    <header class="relative overflow-hidden bg-steel-gradient text-white transition-colors duration-500">
-      <div class="absolute inset-0 bg-mesh opacity-40"></div>
-      <div class="absolute inset-0 bg-topo opacity-30"></div>
+    <header class="relative overflow-hidden hero-bg text-white transition-colors duration-500">
+      <!-- aurora gradient bergerak — memberi kedalaman & nuansa hidup -->
+      <div class="aurora-wrap absolute inset-0 pointer-events-none">
+        <span class="aurora aurora-a"></span>
+        <span class="aurora aurora-b"></span>
+        <span class="aurora aurora-c"></span>
+      </div>
+      <div class="absolute inset-0 bg-mesh opacity-25"></div>
+      <div class="absolute inset-0 bg-topo opacity-20"></div>
       <!-- floating parallax accents -->
       <div ref="shape1" class="parallax absolute top-20 left-10 w-24 h-24 rounded-2xl border border-amber/40 bg-amber/10 backdrop-blur-sm hidden md:block anim-float"></div>
       <div ref="shape2" class="parallax absolute bottom-28 right-20 w-20 h-20 rounded-full border border-steel/50 bg-steel/10 hidden md:block anim-float" style="animation-delay:1s"></div>
@@ -88,9 +91,9 @@
           </div>
           <h1 class="font-display text-5xl md:text-7xl font-bold uppercase leading-[1.02] tracking-wide mb-6">
             Kendalikan<br>Tambang Anda<br>
-            <span class="text-amber">Dengan Data</span>
+            <span class="text-gradient-amber">Dengan Data</span>
           </h1>
-          <p class="text-lg md:text-xl mb-8 max-w-xl text-graphite-200 leading-relaxed">
+          <p class="text-lg md:text-xl mb-8 max-w-xl text-graphite-100 leading-relaxed">
             Pratyaksa mengintegrasikan IoT dan Machine Learning untuk memprediksi kerusakan alat berat dan mengotomatisasi keputusan operasional secara real-time.
           </p>
           <div class="flex flex-col sm:flex-row gap-4">
@@ -128,7 +131,7 @@
     </header>
 
     <!-- MARQUEE -->
-    <div class="bg-amber text-graphite-900 overflow-hidden flex whitespace-nowrap py-2.5 border-y border-amber-deep/30">
+    <div class="bg-amber-gradient text-graphite-900 overflow-hidden flex whitespace-nowrap py-2.5 border-y border-amber-deep/30">
       <div class="animate-marquee font-semibold text-sm uppercase tracking-[0.15em] flex gap-6 items-center">
         <span>⚡ IoT Sensor Integration</span><span class="opacity-50">•</span>
         <span>🚧 Predictive Maintenance</span><span class="opacity-50">•</span>
@@ -167,8 +170,9 @@
     </section>
 
     <!-- SOLUSI -->
-    <section id="solusi" class="py-24 px-6 md:px-20 bg-steel-gradient text-white relative overflow-hidden">
-      <div class="absolute inset-0 bg-topo opacity-25"></div>
+    <section id="solusi" class="py-24 px-6 md:px-20 section-dark text-white relative overflow-hidden">
+      <span class="aurora aurora-soft"></span>
+      <div class="absolute inset-0 bg-topo opacity-20"></div>
       <div class="max-w-7xl mx-auto relative z-10">
         <span v-reveal class="badge bg-amber/15 border-amber/40 text-amber mb-5">End-to-End</span>
         <h2 v-reveal class="font-display text-5xl md:text-6xl font-bold uppercase mb-14 tracking-wide">Solusi End-to-End</h2>
@@ -270,8 +274,9 @@
     </section>
 
     <!-- FOOTER CTA -->
-    <footer class="bg-steel-gradient text-white py-28 px-6 text-center relative overflow-hidden">
-      <div class="absolute inset-0 bg-topo opacity-30"></div>
+    <footer class="section-dark text-white py-28 px-6 text-center relative overflow-hidden">
+      <span class="aurora aurora-soft"></span>
+      <div class="absolute inset-0 bg-topo opacity-25"></div>
       <div class="absolute top-0 left-0 w-full h-1 hazard-stripe opacity-80"></div>
       <div v-reveal class="max-w-4xl mx-auto relative z-10">
         <h2 class="font-display text-4xl md:text-6xl font-bold uppercase mb-10 tracking-wide leading-tight">Tingkatkan Efektivitas Tambang Anda Sekarang</h2>
@@ -298,6 +303,11 @@ useHead({
 const isDark = ref(false)
 const isMounted = ref(false)
 const isMenuOpen = ref(false)
+
+// Navbar adaptif: deteksi apakah di belakang navbar ada section gelap,
+// lalu balik warna agar teks tidak bentrok dengan latar.
+const navEl = ref(null)
+const navOnDark = ref(true)
 
 // Parallax shapes
 const shape1 = ref(null)
@@ -343,8 +353,29 @@ const toggleTheme = () => {
 }
 const toggleMenu = () => { isMenuOpen.value = !isMenuOpen.value }
 
+// Cek section gelap yang sedang berada di belakang navbar
+const updateNavContrast = () => {
+  if (!import.meta.client) return
+  const nav = navEl.value
+  if (!nav) return
+  // Titik sampel = tepat di bawah garis tengah navbar
+  const probeY = nav.getBoundingClientRect().height / 2
+  const darkEls = [
+    document.querySelector('header.hero-bg'),
+    document.getElementById('solusi'),
+    document.querySelector('footer.section-dark'),
+  ].filter(Boolean)
+  let onDark = false
+  for (const el of darkEls) {
+    const r = el.getBoundingClientRect()
+    if (r.top <= probeY && r.bottom >= probeY) { onDark = true; break }
+  }
+  navOnDark.value = onDark
+}
+
 let onMove = null
 let statsObs = null
+let onScroll = null
 
 onMounted(() => {
   isMounted.value = true
@@ -366,6 +397,15 @@ onMounted(() => {
   }
   window.addEventListener('mousemove', onMove)
 
+  // Navbar adaptif — pantau saat scroll & resize
+  onScroll = () => updateNavContrast()
+  window.addEventListener('scroll', onScroll, { passive: true })
+  window.addEventListener('resize', onScroll)
+  // jalankan beberapa kali untuk menangkap layout setelah model-viewer/gambar termuat
+  updateNavContrast()
+  requestAnimationFrame(updateNavContrast)
+  setTimeout(updateNavContrast, 300)
+
   // stats reveal
   if (statsSection.value && 'IntersectionObserver' in window) {
     statsObs = new IntersectionObserver((entries) => {
@@ -380,9 +420,130 @@ onMounted(() => {
 onUnmounted(() => {
   if (onMove) window.removeEventListener('mousemove', onMove)
   if (statsObs) statsObs.disconnect()
+  if (onScroll) {
+    window.removeEventListener('scroll', onScroll)
+    window.removeEventListener('resize', onScroll)
+  }
 })
 </script>
 
 <style scoped>
 .parallax { transition: transform 0.15s ease-out; }
+
+/* ============================================================
+   LANDING — palet "control room" yang lebih hidup & nyaman di mata
+   Mengganti charcoal datar dengan navy-teal berlapis + aurora bergerak
+   ============================================================ */
+
+/* Hero: gradien navy dalam + cahaya warna lembut (steel, hijau, amber) */
+.hero-bg {
+  background:
+    radial-gradient(1200px 620px at 12% -15%, rgba(62,146,204,0.30), transparent 60%),
+    radial-gradient(1000px 560px at 92% 8%, rgba(242,166,12,0.16), transparent 58%),
+    radial-gradient(900px 700px at 70% 110%, rgba(31,169,113,0.18), transparent 60%),
+    linear-gradient(150deg, #16222f 0%, #122436 42%, #0d1923 100%);
+}
+
+/* Section gelap lain (Solusi, Footer) — sedikit berbeda agar tidak monoton */
+.section-dark {
+  background:
+    radial-gradient(900px 500px at 85% -10%, rgba(62,146,204,0.22), transparent 60%),
+    radial-gradient(800px 520px at 10% 120%, rgba(194,112,61,0.16), transparent 58%),
+    linear-gradient(135deg, #15212e 0%, #0f1c28 100%);
+}
+
+/* Aurora bergerak — blob warna ber-blur yang mengambang pelan */
+.aurora-wrap { overflow: hidden; }
+.aurora {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.55;
+  pointer-events: none;
+  will-change: transform;
+}
+.aurora-a {
+  top: -120px; left: -80px;
+  width: 460px; height: 460px;
+  background: radial-gradient(circle at 30% 30%, rgba(62,146,204,0.55), transparent 70%);
+  animation: auroraFloatA 18s ease-in-out infinite;
+}
+.aurora-b {
+  bottom: -140px; right: -60px;
+  width: 420px; height: 420px;
+  background: radial-gradient(circle at 60% 40%, rgba(242,166,12,0.40), transparent 70%);
+  animation: auroraFloatB 22s ease-in-out infinite;
+}
+.aurora-c {
+  top: 30%; left: 55%;
+  width: 360px; height: 360px;
+  background: radial-gradient(circle at 50% 50%, rgba(31,169,113,0.38), transparent 70%);
+  animation: auroraFloatC 26s ease-in-out infinite;
+}
+.aurora-soft {
+  top: -100px; right: 8%;
+  width: 480px; height: 480px;
+  opacity: 0.4;
+  background: radial-gradient(circle at 50% 50%, rgba(62,146,204,0.45), transparent 70%);
+  animation: auroraFloatA 24s ease-in-out infinite;
+}
+
+@keyframes auroraFloatA {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(60px, 40px) scale(1.12); }
+}
+@keyframes auroraFloatB {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-50px, -30px) scale(1.18); }
+}
+@keyframes auroraFloatC {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-40px, 50px) scale(0.9); }
+}
+
+/* Heading utama: teks gradien amber→jingga dengan glow halus
+   (lebih lembut dari amber solid pekat yang menyilaukan) */
+.text-gradient-amber {
+  background: linear-gradient(110deg, #FBBF3F 0%, #F2A60C 45%, #FF8A3D 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter: drop-shadow(0 3px 18px rgba(242,166,12,0.30));
+}
+
+/* ============================================================
+   NAVBAR ADAPTIF — warna otomatis menyesuaikan latar di belakangnya
+   ============================================================ */
+.nav-bar { color: var(--text); }
+
+/* Di atas section terang → kaca terang, teks gelap */
+.nav-bar--light {
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* Di atas section gelap → kaca gelap, teks terang (anti-bentrok) */
+.nav-bar--dark {
+  background: rgba(13, 23, 33, 0.55);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #eef3f8;
+}
+
+/* Tombol ghost & ikon ikut menyesuaikan saat navbar gelap */
+.nav-bar--dark :deep(.btn-ghost) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #eef3f8;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.nav-bar--dark :deep(.btn-ghost:hover) {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* Hormati preferensi reduksi gerak */
+@media (prefers-reduced-motion: reduce) {
+  .aurora { animation: none !important; }
+}
 </style>

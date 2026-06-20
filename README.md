@@ -2,6 +2,9 @@
 
 Platform manajemen armada alat berat pertambangan dengan predictive maintenance berbasis IoT.
 
+## contributor repo - FUllstack Data Engineering
+https://github.com/virgiawanprima/project-pratyaksa-kic
+
 ## Arsitektur
 
 ```

@@ -250,7 +250,7 @@ html {
 }
 
 /* Industrial table */
-.table-industrial { width: 100%; border-collapse: collapse; }
+.table-industrial { width: 100%; border-collapse: collapse; min-width: 720px; }
 .table-industrial thead th {
   background: var(--surface-3);
   color: var(--text-muted);
