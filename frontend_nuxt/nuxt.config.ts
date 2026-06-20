@@ -23,6 +23,9 @@ export default defineNuxtConfig({
   // Di production (Docker): /api/v1  — request melewati Nginx → backend
   // Di development lokal: http://localhost:8080/api/v1
   runtimeConfig: {
+    // Private (server-only) — target gRPC service bot Telegram (host:port)
+    // Di Docker: nama service "telegram-bot:50051". Lokal: 127.0.0.1:50051
+    telegramGrpcTarget: process.env.NUXT_TELEGRAM_GRPC_TARGET || '127.0.0.1:50051',
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080/api/v1',
     },

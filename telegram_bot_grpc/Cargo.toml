@@ -1,0 +1,30 @@
+[package]
+name = "telegram_bot_grpc"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "telegram_bot_grpc"
+path = "src/main.rs"
+
+[dependencies]
+# gRPC server (low latency, HTTP/2)
+tonic = "0.12"
+prost = "0.13"
+
+# Async runtime
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "signal"] }
+
+# HTTP client ke Telegram Bot API (rustls → tanpa OpenSSL, cocok untuk musl static)
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[build-dependencies]
+tonic-build = "0.12"

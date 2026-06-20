@@ -84,6 +84,36 @@ services:
       start_period: 10s
 
   # ============================================================
+  # TELEGRAM BOT SERVICE — Rust + tonic (gRPC, low latency)
+  # Dipanggil server Nuxt via gRPC; meneruskan alert ke Telegram.
+  # ============================================================
+
+  telegram-bot:
+    build:
+      context: ./telegram_bot_grpc
+      dockerfile: Dockerfile
+    container_name: pratyaksa-telegram-bot
+    profiles: ["bot", "full"]
+    restart: unless-stopped
+    environment:
+      GRPC_HOST: 0.0.0.0
+      GRPC_PORT: 50051
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-token}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-token}
+      # Backend untuk command /status (ringkasan fleet real-time)
+      BACKEND_URL: ${BOT_BACKEND_URL:-http://backend:8080}
+      # File persistensi daftar subscriber (chat_id yang sudah /start)
+      SUBSCRIBERS_FILE: /app/data/subscribers.json
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      - bot_data:/app/data
+    # Hanya internal network — gRPC tidak diekspos ke host
+    expose:
+      - "50051"
+    networks:
+      - pratyaksa-net
+
+  # ============================================================
   # FRONTEND SERVICE — Nuxt 4 (profile: full)
   # ============================================================
 
@@ -100,9 +130,13 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+      telegram-bot:
+        condition: service_started
     environment:
       # Di dalam container, Nuxt memanggil /api/v1 yang diteruskan Nginx ke backend
       NUXT_PUBLIC_API_BASE: /api/v1
+      # Target gRPC service bot Telegram (low latency) di network internal
+      NUXT_TELEGRAM_GRPC_TARGET: ${NUXT_TELEGRAM_GRPC_TARGET:-telegram-bot:50051}
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 3000
@@ -189,6 +223,8 @@ volumes:
     name: pratyaksa_mongo_data
   pgadmin_data:
     name: pratyaksa_pgadmin_data
+  bot_data:
+    name: pratyaksa_bot_data
 
 networks:
   pratyaksa-net:

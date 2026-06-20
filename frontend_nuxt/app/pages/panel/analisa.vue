@@ -91,6 +91,37 @@ const errorMsg = ref('')
 const autoRefresh = ref(true)
 const lastUpdate = ref('')
 
+// --- LIVE mode (silent / telegram) ---
+type LiveMode = 'silent' | 'telegram'
+const liveMode = ref<LiveMode>('silent')
+const liveMenuOpen = ref(false)
+const alertStatus = ref<{ ok: boolean; msg: string } | null>(null)
+const alertTesting = ref(false)
+const alertedAssets = new Set<string>() // throttle: 1 alert per episode CRITICAL (sukses)
+const alertCooldown = new Map<string, number>() // asset -> timestamp boleh coba lagi (setelah gagal)
+let alertStatusTimer: any = null
+
+const toggleLive = () => {
+  autoRefresh.value = !autoRefresh.value
+  liveMenuOpen.value = false
+}
+const setLiveMode = (mode: LiveMode) => {
+  liveMode.value = mode
+  autoRefresh.value = true
+  liveMenuOpen.value = false
+  if (mode === 'silent') {
+    alertedAssets.clear()
+  } else {
+    maybeSendAlert()
+  }
+}
+
+const showAlertStatus = (ok: boolean, msg: string) => {
+  alertStatus.value = { ok, msg }
+  if (alertStatusTimer) clearTimeout(alertStatusTimer)
+  alertStatusTimer = setTimeout(() => { alertStatus.value = null }, 6000)
+}
+
 const { initAuth, user } = useAuth()
 const { isDark, toggleTheme, initTheme } = useTheme()
 const { resolveModel } = useModels()
@@ -151,6 +182,82 @@ const refreshAll = async () => {
   await Promise.all([fetchOverview(), fetchAnalysis()])
   await nextTick()
   renderAllCharts()
+  await maybeSendAlert()
+}
+
+// --- Telegram alert (mode live + telegram) ---
+const buildAlertPayload = (a: any) => {
+  const shaps = [...(a.shap_contributions || [])].sort((x: any, y: any) => Math.abs(y.value) - Math.abs(x.value))
+  const fmt = (s: any) => (s ? `${s.feature} (${Math.abs(Math.round(s.value))}%)` : '-')
+  const urgent = lstmComponents.value[0]
+  const partName = urgent?.label || a.rul_prediction?.component || 'Komponen Utama'
+  const partNo =
+    'PRT-' +
+    String(a.unit.code).replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 6) +
+    '-' +
+    String(Math.round(urgent?.hours || 0)).padStart(3, '0')
+  return {
+    asset_id: a.unit.code,
+    model: a.unit.jenis_alat_berat_nama || '-',
+    lokasi: 'Area Tambang Kutai',
+    status: a.prediction.risk_level,
+    rul: String(Math.round(a.prediction.lstm_rul_hours)),
+    shap1: fmt(shaps[0]),
+    shap2: fmt(shaps[1]),
+    part_name: partName,
+    part_no: partNo,
+    stok: String(2 + (String(a.unit.code).length % 4)),
+  }
+}
+
+const maybeSendAlert = async () => {
+  if (liveMode.value !== 'telegram') return
+  const a = analysis.value as any
+  if (!a || !a.prediction) return
+  const asset = a.unit.code
+  if (a.prediction.risk_level === 'CRITICAL') {
+    if (alertedAssets.has(asset)) return // sudah terkirim untuk episode CRITICAL ini
+    if (Date.now() < (alertCooldown.get(asset) || 0)) return // masih cooldown setelah gagal
+    try {
+      const res: any = await api.sendAlert(buildAlertPayload(a))
+      alertedAssets.add(asset)
+      alertCooldown.delete(asset)
+      const upMsg = res?.upstream?.message
+      showAlertStatus(true, `Alert ${asset} (CRITICAL) terkirim.${upMsg ? ' ' + upMsg : ''}`)
+    } catch (e: any) {
+      // jangan spam: tunda 60 dtk sebelum coba lagi
+      alertCooldown.set(asset, Date.now() + 60000)
+      const detail = e?.data?.statusMessage || e?.data?.message || e?.statusMessage || e?.message || 'endpoint tak terjangkau'
+      showAlertStatus(false, `Gagal kirim alert ${asset}: ${detail} — cek koneksi ke endpoint Telegram.`)
+    }
+  } else {
+    alertedAssets.delete(asset)
+    alertCooldown.delete(asset)
+  }
+}
+
+// Uji koneksi ke endpoint Telegram (kirim test alert) — bisa dipanggil kapan saja
+const testTelegram = async () => {
+  liveMenuOpen.value = false
+  alertTesting.value = true
+  try {
+    const a = analysis.value as any
+    const payload = a
+      ? { ...buildAlertPayload(a), lokasi: 'Uji Koneksi (TEST)' }
+      : {
+          asset_id: 'TEST-PING', model: 'Pratyaksa Test', lokasi: 'Uji Koneksi (TEST)',
+          status: 'TEST', rul: '0', shap1: '-', shap2: '-',
+          part_name: '-', part_no: '-', stok: '0',
+        }
+    const res: any = await api.sendAlert(payload)
+    const upMsg = res?.upstream?.message
+    showAlertStatus(true, `Koneksi Telegram OK — test alert terkirim${a ? ' (' + a.unit.code + ')' : ''}.${upMsg ? ' ' + upMsg : ''}`)
+  } catch (e: any) {
+    const detail = e?.data?.statusMessage || e?.data?.message || e?.statusMessage || e?.message || 'endpoint tak terjangkau'
+    showAlertStatus(false, `Test koneksi gagal: ${detail}`)
+  } finally {
+    alertTesting.value = false
+  }
 }
 
 const selectUnit = async (id: string) => {
@@ -594,17 +701,70 @@ const statusLabelColor = (s: string) => ({
           <p class="mt-2 text-[color:var(--text-muted)]">Monitoring kondisi & prediksi kegagalan armada secara real-time.</p>
         </div>
         <div class="flex items-center gap-3">
-          <button @click="autoRefresh = !autoRefresh"
-            :class="autoRefresh ? 'border-healthy/50 text-healthy bg-healthy/10' : 'btn-ghost'"
-            class="btn !py-2.5 text-xs">
-            <span class="w-2.5 h-2.5 rounded-full" :class="autoRefresh ? 'bg-healthy anim-live' : 'bg-[color:var(--text-faint)]'"></span>
-            {{ autoRefresh ? 'LIVE' : 'PAUSED' }}
-          </button>
+          <!-- LIVE control: split button + dropdown mode -->
+          <div class="relative">
+            <div class="flex">
+              <button @click="toggleLive"
+                :class="autoRefresh ? (liveMode === 'telegram' ? 'border-steel/50 text-steel bg-steel/10' : 'border-healthy/50 text-healthy bg-healthy/10') : 'btn-ghost'"
+                class="btn !py-2.5 !rounded-r-none text-xs">
+                <span class="w-2.5 h-2.5 rounded-full" :class="autoRefresh ? (liveMode === 'telegram' ? 'bg-steel anim-live' : 'bg-healthy anim-live') : 'bg-[color:var(--text-faint)]'"></span>
+                {{ autoRefresh ? (liveMode === 'telegram' ? 'LIVE + TELEGRAM' : 'LIVE') : 'PAUSED' }}
+              </button>
+              <button @click="liveMenuOpen = !liveMenuOpen" aria-label="Pilih mode live"
+                class="btn btn-ghost !py-2.5 !px-2 !rounded-l-none border-l-0">
+                <svg class="w-3.5 h-3.5 transition-transform" :class="{ 'rotate-180': liveMenuOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+            </div>
+
+            <!-- dropdown -->
+            <div v-if="liveMenuOpen" class="absolute right-0 mt-2 w-64 z-50 panel-raised p-1.5 anim-pop">
+              <button @click="setLiveMode('silent')" class="w-full flex items-start gap-2.5 p-2.5 rounded-lg text-left hover:bg-[color:var(--surface-2)] transition-colors">
+                <span class="w-2.5 h-2.5 rounded-full bg-healthy mt-1 shrink-0"></span>
+                <span>
+                  <span class="block font-semibold text-sm">Live (tanpa Telegram)</span>
+                  <span class="block text-[11px] text-[color:var(--text-muted)]">Monitoring real-time saja</span>
+                </span>
+                <svg v-if="liveMode === 'silent' && autoRefresh" class="w-4 h-4 text-healthy ml-auto mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
+              </button>
+              <button @click="setLiveMode('telegram')" class="w-full flex items-start gap-2.5 p-2.5 rounded-lg text-left hover:bg-[color:var(--surface-2)] transition-colors">
+                <svg class="w-3.5 h-3.5 text-steel mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
+                <span>
+                  <span class="block font-semibold text-sm">Live + Kirim Telegram</span>
+                  <span class="block text-[11px] text-[color:var(--text-muted)]">Kirim alert otomatis saat CRITICAL</span>
+                </span>
+                <svg v-if="liveMode === 'telegram' && autoRefresh" class="w-4 h-4 text-steel ml-auto mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
+              </button>
+              <div v-if="autoRefresh" class="border-t border-[color:var(--border)] mt-1 pt-1">
+                <button @click="toggleLive" class="w-full flex items-center gap-2.5 p-2.5 rounded-lg text-left hover:bg-[color:var(--surface-2)] transition-colors text-[color:var(--text-muted)]">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+                  <span class="font-semibold text-sm">Pause</span>
+                </button>
+              </div>
+              <div class="border-t border-[color:var(--border)] mt-1 pt-1">
+                <button @click="testTelegram" :disabled="alertTesting"
+                  class="w-full flex items-center gap-2.5 p-2.5 rounded-lg text-left hover:bg-[color:var(--surface-2)] transition-colors text-steel disabled:opacity-60">
+                  <svg v-if="!alertTesting" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
+                  <svg v-else class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                  <span class="font-semibold text-sm">{{ alertTesting ? 'Menguji koneksi…' : 'Test Koneksi Telegram' }}</span>
+                </button>
+              </div>
+            </div>
+            <!-- klik luar menutup -->
+            <div v-if="liveMenuOpen" class="fixed inset-0 z-40" @click="liveMenuOpen = false"></div>
+          </div>
+
           <div class="panel-flat px-3 py-2 text-[10px] font-mono text-[color:var(--text-muted)]">
             Update<br><span class="font-semibold text-[color:var(--text)]">{{ lastUpdate || '—' }}</span>
           </div>
         </div>
       </header>
+
+      <!-- status pengiriman alert telegram -->
+      <div v-if="alertStatus" class="mb-4 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2"
+        :class="alertStatus.ok ? 'bg-healthy/10 border border-healthy/40 text-healthy' : 'bg-critical/10 border border-critical/40 text-critical'">
+        <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
+        {{ alertStatus.msg }}
+      </div>
 
       <div v-if="errorMsg" class="mb-6 px-4 py-3 rounded-xl bg-critical/10 border border-critical/40 text-critical font-semibold">⚠️ {{ errorMsg }}</div>
 

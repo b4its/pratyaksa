@@ -4,7 +4,8 @@ import { join } from 'node:path'
 
 /**
  * Upload file model 3D (.glb / .gltf) ke media frontend.
- * File disimpan di public/media/models/ dan dikembalikan URL publiknya.
+ * Ditempatkan di /svc/ (bukan /api/) agar di Docker tidak diarahkan Nginx ke
+ * backend Rust. File disimpan di public/media/models/ dan dikembalikan URL-nya.
  */
 const ALLOWED_EXT = ['.glb', '.gltf']
 const MAX_BYTES = 50 * 1024 * 1024 // 50 MB

@@ -154,7 +154,23 @@ export const useApi = () => {
     async uploadModel(file: File) {
       const fd = new FormData()
       fd.append('file', file)
-      return await $fetch('/api/upload-model', { method: 'POST', body: fd })
+      return await $fetch('/svc/upload-model', { method: 'POST', body: fd })
+    },
+
+    // ---- Kirim alert ke bot Telegram (via proxy server Nuxt → endpoint data science) ----
+    async sendAlert(payload: {
+      asset_id: string
+      model: string
+      lokasi: string
+      status: string
+      rul: string
+      shap1: string
+      shap2: string
+      part_name: string
+      part_no: string
+      stok: string
+    }) {
+      return await $fetch('/svc/send-alert', { method: 'POST', body: payload })
     },
 
     // ---- Analisa Kerusakan (Health Analytics - realtime) ----

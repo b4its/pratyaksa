@@ -7,6 +7,46 @@ use crate::{
 };
 use actix_web::{web, HttpResponse};
 
+/// Ringkasan fleet ringkas untuk konsumsi internal (mis. bot Telegram /status).
+/// Tidak diproteksi JWT — backend hanya ter-expose di network internal Docker,
+/// dan datanya hanya berupa hitungan agregat (non-sensitif).
+pub async fn get_fleet_summary(
+    pg: web::Data<PostgresDb>,
+) -> Result<HttpResponse, AppError> {
+    let rows = sqlx::query_as::<_, (String, i64)>(
+        "SELECT status, COUNT(*) FROM unit_tambang GROUP BY status",
+    )
+    .fetch_all(&pg.pool)
+    .await?;
+
+    let mut critical = 0i64;
+    let mut warning = 0i64;
+    let mut normal = 0i64;
+    let mut rusak = 0i64;
+    let mut total = 0i64;
+    for (status, count) in &rows {
+        total += count;
+        match status.as_str() {
+            "CRITICAL" => critical += count,
+            "WARNING" => warning += count,
+            "SEHAT" => normal += count,
+            "RUSAK" => rusak += count,
+            _ => {}
+        }
+    }
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "status": "success",
+        "data": {
+            "critical": critical,
+            "warning": warning,
+            "normal": normal,
+            "rusak": rusak,
+            "total": total
+        }
+    })))
+}
+
 pub async fn get_stats(
     pg: web::Data<PostgresDb>,
     _mongo: web::Data<MongoDb>,

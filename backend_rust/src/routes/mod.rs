@@ -13,6 +13,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         web::scope("/api/v1")
             // Health check
             .route("/health", web::get().to(health_check))
+            // Fleet summary ringkas untuk bot Telegram (internal, tanpa auth)
+            .route("/fleet-summary", web::get().to(dashboard::get_fleet_summary))
             // Auth routes (public)
             .service(
                 web::scope("/auth")

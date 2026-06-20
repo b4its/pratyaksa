@@ -17,6 +17,7 @@ RUN npm install --legacy-peer-deps
 
 # Copy source
 COPY app ./app
+COPY server ./server
 COPY nuxt.config.ts tsconfig.json ./
 COPY public ./public
 
