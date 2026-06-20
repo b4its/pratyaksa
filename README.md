@@ -182,4 +182,7 @@ docker compose --profile full up -d --force-recreate --no-deps backend
 
 # Kalau backend restart & nginx kasih 502, restart nginx
 docker restart pratyaksa-nginx
+
+docker compose --profile full up -d --build
+
 ```

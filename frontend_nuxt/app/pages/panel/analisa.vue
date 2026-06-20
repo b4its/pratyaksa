@@ -186,10 +186,10 @@ const refreshAll = async () => {
 }
 
 // --- Telegram alert (mode live + telegram) ---
-const buildAlertPayload = (a: any) => {
+const buildAlertPayload = (a: any, statusOverride?: string) => {
   const shaps = [...(a.shap_contributions || [])].sort((x: any, y: any) => Math.abs(y.value) - Math.abs(x.value))
   const fmt = (s: any) => (s ? `${s.feature} (${Math.abs(Math.round(s.value))}%)` : '-')
-  const urgent = lstmComponents.value[0]
+  const urgent = lstmComponentsOf(a)[0]
   const partName = urgent?.label || a.rul_prediction?.component || 'Komponen Utama'
   const partNo =
     'PRT-' +
@@ -200,7 +200,7 @@ const buildAlertPayload = (a: any) => {
     asset_id: a.unit.code,
     model: a.unit.jenis_alat_berat_nama || '-',
     lokasi: 'Area Tambang Kutai',
-    status: a.prediction.risk_level,
+    status: statusOverride || a.prediction.risk_level,
     rul: String(Math.round(a.prediction.lstm_rul_hours)),
     shap1: fmt(shaps[0]),
     shap2: fmt(shaps[1]),
@@ -210,29 +210,51 @@ const buildAlertPayload = (a: any) => {
   }
 }
 
+// Status unit yang memicu kirim ke Telegram
+const ALERT_STATUSES = ['CRITICAL', 'WARNING']
+
+// Broadcast alert untuk SEMUA unit berstatus CRITICAL / WARNING (bukan hanya unit terpilih).
+// Throttle per-unit: 1 alert per episode (sukses), cooldown 60 dtk setelah gagal.
 const maybeSendAlert = async () => {
   if (liveMode.value !== 'telegram') return
-  const a = analysis.value as any
-  if (!a || !a.prediction) return
-  const asset = a.unit.code
-  if (a.prediction.risk_level === 'CRITICAL') {
-    if (alertedAssets.has(asset)) return // sudah terkirim untuk episode CRITICAL ini
-    if (Date.now() < (alertCooldown.get(asset) || 0)) return // masih cooldown setelah gagal
+  const ov = overview.value
+  if (!ov || !Array.isArray(ov.units)) return
+
+  const atRisk = ov.units.filter(u => ALERT_STATUSES.includes(u.status))
+  const atRiskCodes = new Set(atRisk.map(u => u.code))
+
+  // Reset throttle untuk unit yang sudah tidak berisiko (kembali SEHAT/RUSAK)
+  for (const code of [...alertedAssets]) {
+    if (!atRiskCodes.has(code)) { alertedAssets.delete(code); alertCooldown.delete(code) }
+  }
+
+  let sent = 0
+  let failed = 0
+  let lastDetail = ''
+  for (const u of atRisk) {
+    const asset = u.code
+    if (alertedAssets.has(asset)) continue                       // sudah terkirim episode ini
+    if (Date.now() < (alertCooldown.get(asset) || 0)) continue   // masih cooldown setelah gagal
     try {
-      const res: any = await api.sendAlert(buildAlertPayload(a))
+      const detail: any = await api.getUnitAnalysis(u.id)
+      const a = detail.data
+      await api.sendAlert(buildAlertPayload(a, u.status))
       alertedAssets.add(asset)
       alertCooldown.delete(asset)
-      const upMsg = res?.upstream?.message
-      showAlertStatus(true, `Alert ${asset} (CRITICAL) terkirim.${upMsg ? ' ' + upMsg : ''}`)
+      sent++
     } catch (e: any) {
-      // jangan spam: tunda 60 dtk sebelum coba lagi
-      alertCooldown.set(asset, Date.now() + 60000)
-      const detail = e?.data?.statusMessage || e?.data?.message || e?.statusMessage || e?.message || 'endpoint tak terjangkau'
-      showAlertStatus(false, `Gagal kirim alert ${asset}: ${detail} — cek koneksi ke endpoint Telegram.`)
+      alertCooldown.set(asset, Date.now() + 60000) // jangan spam: tunda 60 dtk
+      failed++
+      lastDetail = e?.data?.statusMessage || e?.data?.message || e?.statusMessage || e?.message || 'endpoint tak terjangkau'
     }
-  } else {
-    alertedAssets.delete(asset)
-    alertCooldown.delete(asset)
+  }
+
+  if (sent > 0 && failed === 0) {
+    showAlertStatus(true, `Alert terkirim untuk ${sent} unit berisiko (CRITICAL/WARNING).`)
+  } else if (sent > 0 && failed > 0) {
+    showAlertStatus(false, `${sent} alert terkirim, ${failed} gagal: ${lastDetail}`)
+  } else if (failed > 0) {
+    showAlertStatus(false, `Gagal kirim alert (${failed} unit): ${lastDetail} — cek koneksi ke endpoint Telegram.`)
   }
 }
 
@@ -368,9 +390,11 @@ const rulTone = (h: number) => (h < 150 ? '#E0413E' : h < 450 ? '#E0A106' : '#1F
 const rulToneLabel = (h: number) => (h < 150 ? 'CRITICAL' : h < 450 ? 'WARNING' : 'NORMAL')
 
 // 7 RUL komponen LSTM (sesuai kontrak /predict), urut paling mendesak
-const lstmComponents = computed(() => {
-  const p = analysis.value?.prediction
-  if (!p) return [] as { label: string; hours: number }[]
+// Hitung 7 RUL komponen LSTM (sesuai kontrak /predict) dari sebuah objek analisa,
+// urut paling mendesak. Dipakai untuk unit terpilih maupun unit lain saat broadcast.
+const lstmComponentsOf = (a: any): { label: string; hours: number }[] => {
+  const p = a?.prediction
+  if (!p) return []
   return [
     { label: 'Sistem Hidrolik', hours: p.lstm_hydraulic_system },
     { label: 'Pompa Hidrolik', hours: p.lstm_hydraulic_pump },
@@ -380,7 +404,9 @@ const lstmComponents = computed(() => {
     { label: 'Brake Pad (Rear)', hours: p.lstm_brake_pad },
     { label: 'Sistem Kemudi', hours: p.lstm_steering_system },
   ].sort((a, b) => a.hours - b.hours)
-})
+}
+
+const lstmComponents = computed(() => lstmComponentsOf(analysis.value))
 
 const digitalTwins = computed(() => {
   const d = analysis.value?.prediction?.digital_twin
@@ -631,7 +657,7 @@ onMounted(async () => {
 
   refreshTimer = setInterval(() => {
     if (autoRefresh.value) refreshAll()
-  }, 5000)
+  }, 15000)
 })
 
 onUnmounted(() => {
@@ -730,7 +756,7 @@ const statusLabelColor = (s: string) => ({
                 <svg class="w-3.5 h-3.5 text-steel mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
                 <span>
                   <span class="block font-semibold text-sm">Live + Kirim Telegram</span>
-                  <span class="block text-[11px] text-[color:var(--text-muted)]">Kirim alert otomatis saat CRITICAL</span>
+                  <span class="block text-[11px] text-[color:var(--text-muted)]">Kirim alert otomatis saat CRITICAL & WARNING</span>
                 </span>
                 <svg v-if="liveMode === 'telegram' && autoRefresh" class="w-4 h-4 text-steel ml-auto mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
               </button>
