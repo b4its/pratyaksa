@@ -28,6 +28,8 @@ struct AppState {
     bot_token: String,
     http: reqwest::Client,
     backend_url: String,
+    /// Base URL frontend untuk link Work Order, mis. https://pratyaksa.kideco.co.id
+    wo_link_base: String,
     subscribers_file: String,
     /// Semua chat_id yang sudah menjalankan /start (broadcast alert ke sini).
     subscribers: RwLock<HashSet<i64>>,
@@ -36,7 +38,8 @@ struct AppState {
 
 impl AppState {
     /// Susun pesan alert HTML persis seperti format bot Python sebelumnya.
-    fn build_alert_message(d: &AlertRequest) -> String {
+    fn build_alert_message(d: &AlertRequest, wo_base: &str) -> String {
+        let wo_link = format!("{}/wo/create/{}", wo_base.trim_end_matches('/'), d.asset_id);
         format!(
             "🚨 <b>[URGENT ALARM : PRATYAKSA]</b> 🚨\n\n\
              🚜 <b>Unit:</b> {asset} ({model})\n\
@@ -51,7 +54,7 @@ impl AppState {
              - Part Name: {part_name}\n\
              - Part No: {part_no}\n\
              - Stok Workshop: {stok} Unit\n\n\
-             🔗 <a href=\"https://pratyaksa.kideco.co.id/wo/generate/{asset}\">Buat Work Order</a>",
+             🔗 <a href=\"{wo_link}\">Buat Work Order</a>",
             asset = d.asset_id,
             model = d.model,
             lokasi = d.lokasi,
@@ -62,6 +65,7 @@ impl AppState {
             part_name = d.part_name,
             part_no = d.part_no,
             stok = d.stok,
+            wo_link = wo_link,
         )
     }
 
@@ -328,7 +332,7 @@ impl AlertService for BotGrpc {
             ));
         }
 
-        let message = AppState::build_alert_message(&d);
+        let message = AppState::build_alert_message(&d, &self.state.wo_link_base);
         let mut delivered = 0usize;
         let mut last_err: Option<String> = None;
         for chat_id in &targets {
@@ -395,6 +399,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bot_token = env::var("TELEGRAM_BOT_TOKEN").unwrap_or_default();
     let default_chat_id = env::var("TELEGRAM_CHAT_ID").ok().and_then(|s| s.trim().parse::<i64>().ok());
     let backend_url = env::var("BACKEND_URL").unwrap_or_else(|_| "http://backend:8080".to_string());
+    let wo_link_base =
+        env::var("WO_LINK_BASE").unwrap_or_else(|_| "http://localhost".to_string());
     let subscribers_file =
         env::var("SUBSCRIBERS_FILE").unwrap_or_else(|_| "/app/data/subscribers.json".to_string());
 
@@ -418,6 +424,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         bot_token,
         http: reqwest::Client::new(),
         backend_url,
+        wo_link_base,
         subscribers_file,
         subscribers: RwLock::new(initial),
         fleet: RwLock::new(HashMap::new()),

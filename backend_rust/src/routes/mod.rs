@@ -7,6 +7,7 @@ pub mod health_analytics;
 pub mod jenis_alat_berat;
 pub mod telemetry;
 pub mod unit_tambang;
+pub mod work_order;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -68,6 +69,15 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                     .wrap(crate::middleware::AuthMiddleware)
                     .route("", web::post().to(telemetry::create))
                     .route("/unit/{id}", web::get().to(telemetry::list_by_unit)),
+            )
+            // Work Order (protected, PostgreSQL)
+            .service(
+                web::scope("/work-orders")
+                    .wrap(crate::middleware::AuthMiddleware)
+                    .route("", web::get().to(work_order::list))
+                    .route("", web::post().to(work_order::create))
+                    .route("/{id}", web::get().to(work_order::get_by_id))
+                    .route("/{id}", web::put().to(work_order::update)),
             ),
     );
 }

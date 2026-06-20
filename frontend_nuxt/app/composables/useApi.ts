@@ -186,6 +186,49 @@ export const useApi = () => {
       })
     },
 
+    // ---- Work Orders (persistensi PostgreSQL) ----
+    async getWorkOrders(params?: { page?: number; per_page?: number; wo_status?: string; asset_code?: string }) {
+      const query = new URLSearchParams()
+      if (params?.page) query.set('page', String(params.page))
+      if (params?.per_page) query.set('per_page', String(params.per_page))
+      if (params?.wo_status) query.set('wo_status', params.wo_status)
+      if (params?.asset_code) query.set('asset_code', params.asset_code)
+      const qs = query.toString() ? `?${query.toString()}` : ''
+      return await $fetch(`${baseURL}/work-orders${qs}`, { headers: getAuthHeaders() })
+    },
+
+    async createWorkOrder(body: {
+      asset_code: string
+      equipment_type?: string
+      status_unit: string
+      priority?: string
+      component?: string
+      part_no?: string
+      rul_hours?: number
+      est_cost?: number
+      scheduled_at?: string
+      est_completion_at?: string
+      technician?: string
+      notes?: string
+    }) {
+      return await $fetch(`${baseURL}/work-orders`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body,
+      })
+    },
+
+    async updateWorkOrder(
+      id: string,
+      body: { wo_status?: string; technician?: string; notes?: string; feedback?: string },
+    ) {
+      return await $fetch(`${baseURL}/work-orders/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body,
+      })
+    },
+
     // ---- Telemetry (ingestion & history) ----
     async getTelemetryHistory(unitId: string, limit = 100) {
       return await $fetch(`${baseURL}/telemetry/unit/${unitId}?limit=${limit}`, {
