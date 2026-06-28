@@ -4,6 +4,8 @@ Platform manajemen armada alat berat pertambangan dengan **predictive maintenanc
 
 > **Contributor — Fullstack & Data Engineering**
 > https://github.com/virgiawanprima/project-pratyaksa-kic
+> **Resume — Data and Machine Learning Pratyaksa**
+> https://github.com/b4its/ml-pratyaksa
 
 ## Fitur Utama
 
