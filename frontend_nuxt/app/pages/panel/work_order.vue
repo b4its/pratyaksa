@@ -669,6 +669,10 @@ const refreshAll = async () => {
 onMounted(async () => {
   initTheme()
   initAuth()
+  // Inisialisasi pratyaksa polling
+  const pratyaksa = usePratyaksa()
+  pratyaksa.fetchAll()
+  pratyaksa.startPolling(10000)
   isLoading.value = true
   if (typeof window !== 'undefined') {
     const mod = await import('chart.js/auto')
@@ -724,17 +728,16 @@ watch(isDark, () => { nextTick(() => renderAll()) })
           <p class="mt-2 text-[color:var(--text-muted)]">Estimasi perbaikan unit CRITICAL, WARNING & RUSAK — dipicu dari alert Telegram.</p>
         </div>
         <div class="flex items-center gap-3">
-          <button @click="autoRefresh = !autoRefresh"
-            :class="autoRefresh ? 'border-healthy/50 text-healthy bg-healthy/10' : 'btn-ghost'"
-            class="btn !py-2.5 text-xs">
-            <span class="w-2.5 h-2.5 rounded-full" :class="autoRefresh ? 'bg-healthy anim-live' : 'bg-[color:var(--text-faint)]'"></span>
-            {{ autoRefresh ? 'LIVE' : 'PAUSED' }}
-          </button>
+          <!-- PRATYAKSA Mode Selector -->
+          <ModeSelector :showSubModes="false" />
           <div class="panel-flat px-3 py-2 text-[10px] font-mono text-[color:var(--text-muted)]">
             Update<br><span class="font-semibold text-[color:var(--text)]">{{ lastUpdate || '—' }}</span>
           </div>
         </div>
       </header>
+
+      <!-- Mode Lock Table -->
+      <ModeLockTabel />
 
       <div v-if="errorMsg" class="mb-6 px-4 py-3 rounded-xl bg-critical/10 border border-critical/40 text-critical font-semibold">⚠️ {{ errorMsg }}</div>
       <div v-if="woToast" class="mb-4 px-4 py-2.5 rounded-xl text-sm font-semibold"

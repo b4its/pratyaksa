@@ -147,6 +147,49 @@ impl AppState {
         }
     }
 
+    /// Ambil status DS API (mode live/simulasi) dari backend untuk command /pratyaksa
+    async fn fetch_pratyaksa_status(&self) -> Result<String, String> {
+        let url = format!(
+            "{}/api/v1/pratyaksa/status",
+            self.backend_url.trim_end_matches('/')
+        );
+        let resp = self
+            .http
+            .get(&url)
+            .timeout(Duration::from_secs(10))
+            .send()
+            .await
+            .map_err(|e| format!("tidak dapat menghubungi backend: {e}"))?;
+
+        if !resp.status().is_success() {
+            return Err(format!("backend membalas HTTP {}", resp.status()));
+        }
+
+        let v: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| format!("respons backend tidak valid: {e}"))?;
+        let d = &v["data"];
+        let mode = d["mode"].as_str().unwrap_or("unknown");
+        let reachable = d["api_reachable"].as_bool().unwrap_or(false);
+        let fleet = d["fleet_count"].as_i64().unwrap_or(0);
+        let health = d["last_health_check"].as_str().unwrap_or("-");
+        let poll = d["last_fleet_poll"].as_str().unwrap_or("-");
+
+        let mode_icon = if mode == "live" { "🟢" } else { "🟡" };
+        let reachable_icon = if reachable { "✅" } else { "❌" };
+
+        Ok(format!(
+            "🤖 <b>PRATYAKSA DS API Status</b>\n\n\
+             {mode_icon} Mode       : <b>{mode}</b>\n\
+             {reachable_icon} Reachable : {reachable}\n\
+             📦 Fleet Count : {fleet} unit\n\
+             🩺 Health Check : {health}\n\
+             📡 Fleet Poll   : {poll}\n\n\
+             <i>Polling tiap 5 detik — otomatis beralih ke SIMULASI jika server DS down.</i>"
+        ))
+    }
+
     /// Ambil ringkasan fleet dari backend untuk command /status.
     async fn fetch_fleet_summary(&self) -> Result<String, String> {
         let url = format!("{}/api/v1/fleet-summary", self.backend_url.trim_end_matches('/'));
@@ -195,7 +238,9 @@ fn greeting_message() -> String {
      📡 Real-time Telemetry — memantau sensor unit 24/7\n\
      🧠 Smart Diagnostics (SHAP) — ungkap akar masalah sebelum breakdown\n\
      🛠️ CMMS Ready — eskalasi alarm jadi Work Order 1 klik\n\n\
-     Ketik /status untuk melihat ringkasan fleet saat ini.\n\
+     Perintah tersedia:\n\
+     /status — Ringkasan fleet dari database\n\
+     /pratyaksa atau /ds — Status koneksi DS API (Live/Simulasi)\n\n\
      Status AI: [ACTIVE] 🚜💻"
         .to_string()
 }
@@ -297,11 +342,23 @@ async fn run_telegram_polling(state: Arc<AppState>) {
                             tracing::warn!("Gagal kirim /status ke {chat_id}: {e}");
                         }
                     }
+                    "/pratyaksa" | "/ds" => {
+                        state.add_subscriber(chat_id).await;
+                        let msg = match state.fetch_pratyaksa_status().await {
+                            Ok(m) => m,
+                            Err(e) => format!(
+                                "⚠️ Gagal mengambil status DS API: {e}.\nCoba lagi sebentar."
+                            ),
+                        };
+                        if let Err(e) = state.send_message(chat_id, &msg).await {
+                            tracing::warn!("Gagal kirim /pratyaksa ke {chat_id}: {e}");
+                        }
+                    }
                     _ => {
                         let _ = state
                             .send_message(
                                 chat_id,
-                                "Perintah tidak dikenal. Gunakan /start atau /status.",
+                                "Perintah tidak dikenal. Gunakan /start, /status, atau /pratyaksa",
                             )
                             .await;
                     }

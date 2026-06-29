@@ -9,6 +9,10 @@ pub struct AppConfig {
     pub mongodb_name: String,
     pub jwt_secret: String,
     pub jwt_expiry_hours: i64,
+    pub pratyaksa_api_url: String,
+    pub pratyaksa_api_key: String,
+    pub pratyaksa_poll_interval_secs: u64,
+    pub custom_api_url: String,
 }
 
 impl AppConfig {
@@ -31,6 +35,16 @@ impl AppConfig {
                 .unwrap_or_else(|_| "24".to_string())
                 .parse::<i64>()
                 .unwrap_or(24),
+            pratyaksa_api_url: env::var("PRATYAKSA_API_URL")
+                .unwrap_or_else(|_| "http://192.168.1.90:6000".to_string()),
+            pratyaksa_api_key: env::var("PRATYAKSA_API_KEY")
+                .unwrap_or_else(|_| "dev-key-pratyaksa".to_string()),
+            pratyaksa_poll_interval_secs: env::var("PRATYAKSA_POLL_INTERVAL")
+                .unwrap_or_else(|_| "5".to_string())
+                .parse::<u64>()
+                .unwrap_or(5),
+            custom_api_url: env::var("CUSTOM_API_URL")
+                .unwrap_or_else(|_| "http://192.168.1.90:7000".to_string()),
         })
     }
 }

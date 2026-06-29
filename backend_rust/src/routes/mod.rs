@@ -5,6 +5,7 @@ pub mod auth;
 pub mod dashboard;
 pub mod health_analytics;
 pub mod jenis_alat_berat;
+pub mod pratyaksa;
 pub mod telemetry;
 pub mod unit_tambang;
 pub mod work_order;
@@ -78,6 +79,20 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                     .route("", web::post().to(work_order::create))
                     .route("/{id}", web::get().to(work_order::get_by_id))
                     .route("/{id}", web::put().to(work_order::update)),
+            )
+            // PRATYAKSA API — proxy/simulasi untuk data predictive maintenance
+            .service(
+                web::scope("/pratyaksa")
+                    .route("/status", web::get().to(pratyaksa::get_status))
+                    .route("/fleet", web::get().to(pratyaksa::get_fleet))
+                    .route("/fleet/health", web::get().to(pratyaksa::get_fleet_health))
+                    .route("/result/{asset_id}", web::get().to(pratyaksa::get_result))
+                    .route("/predict", web::post().to(pratyaksa::post_predict))
+                    .route("/workorder", web::post().to(pratyaksa::post_workorder))
+                    .route("/features", web::get().to(pratyaksa::get_features))
+                    .route("/explain/{prediction_id}", web::get().to(pratyaksa::get_explain))
+                    .route("/reload-models", web::post().to(pratyaksa::post_reload_models))
+                    .route("/mode", web::post().to(pratyaksa::mode_switch)),
             ),
     );
 }

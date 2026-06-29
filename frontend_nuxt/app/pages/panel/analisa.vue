@@ -92,29 +92,21 @@ const errorMsg = ref('')
 const autoRefresh = ref(true)
 const lastUpdate = ref('')
 
-// --- LIVE mode (silent / telegram) ---
-type LiveMode = 'silent' | 'telegram'
-const liveMode = ref<LiveMode>('silent')
-const liveMenuOpen = ref(false)
+// --- LIVE mode (silent / telegram) shared from usePratyaksa singleton ---
+const pratyaksa = usePratyaksa()
+type PratyaksaSourceMode = 'live-silent' | 'live-telegram' | 'hit-endpoint-sendiri' | 'hit-endpoint-ml'
 const alertStatus = ref<{ ok: boolean; msg: string } | null>(null)
 const alertTesting = ref(false)
 const alertedAssets = new Set<string>() // throttle: 1 alert per episode CRITICAL (sukses)
 const alertCooldown = new Map<string, number>() // asset -> timestamp boleh coba lagi (setelah gagal)
 let alertStatusTimer: any = null
 
-const toggleLive = () => {
-  autoRefresh.value = !autoRefresh.value
-  liveMenuOpen.value = false
-}
-const setLiveMode = (mode: LiveMode) => {
-  liveMode.value = mode
-  autoRefresh.value = true
-  liveMenuOpen.value = false
-  if (mode === 'silent') {
-    alertedAssets.clear()
-  } else {
-    maybeSendAlert()
-  }
+// Inisialisasi pratyaksa polling jika belum
+const pratyaksaInit = ref(false)
+if (!pratyaksaInit.value) {
+  pratyaksaInit.value = true
+  pratyaksa.fetchAll()
+  pratyaksa.startPolling(10000)
 }
 
 const showAlertStatus = (ok: boolean, msg: string) => {
@@ -127,6 +119,7 @@ const { initAuth, user } = useAuth()
 const { isDark, toggleTheme, initTheme } = useTheme()
 const { resolveModel } = useModels()
 const api = useApi()
+const config = useRuntimeConfig()
 let ChartLib: any = null
 let refreshTimer: any = null
 
@@ -217,7 +210,7 @@ const ALERT_STATUSES = ['CRITICAL', 'WARNING']
 // Broadcast alert untuk SEMUA unit berstatus CRITICAL / WARNING (bukan hanya unit terpilih).
 // Throttle per-unit: 1 alert per episode (sukses), cooldown 60 dtk setelah gagal.
 const maybeSendAlert = async () => {
-  if (liveMode.value !== 'telegram') return
+  if (pratyaksa.sourceMode.value !== 'live-telegram') return
   const ov = overview.value
   if (!ov || !Array.isArray(ov.units)) return
 
@@ -261,7 +254,6 @@ const maybeSendAlert = async () => {
 
 // Uji koneksi ke endpoint Telegram (kirim test alert) — bisa dipanggil kapan saja
 const testTelegram = async () => {
-  liveMenuOpen.value = false
   alertTesting.value = true
   try {
     const a = analysis.value as any
@@ -692,63 +684,17 @@ const statusLabelColor = (s: string) => ({
           <p class="mt-2 text-[color:var(--text-muted)]">Monitoring kondisi & prediksi kegagalan armada secara real-time.</p>
         </div>
         <div class="flex items-center gap-3">
-          <!-- LIVE control: split button + dropdown mode -->
-          <div class="relative">
-            <div class="flex">
-              <button @click="toggleLive"
-                :class="autoRefresh ? (liveMode === 'telegram' ? 'border-steel/50 text-steel bg-steel/10' : 'border-healthy/50 text-healthy bg-healthy/10') : 'btn-ghost'"
-                class="btn !py-2.5 !rounded-r-none text-xs">
-                <span class="w-2.5 h-2.5 rounded-full" :class="autoRefresh ? (liveMode === 'telegram' ? 'bg-steel anim-live' : 'bg-healthy anim-live') : 'bg-[color:var(--text-faint)]'"></span>
-                {{ autoRefresh ? (liveMode === 'telegram' ? 'LIVE + TELEGRAM' : 'LIVE') : 'PAUSED' }}
-              </button>
-              <button @click="liveMenuOpen = !liveMenuOpen" aria-label="Pilih mode live"
-                class="btn btn-ghost !py-2.5 !px-2 !rounded-l-none border-l-0">
-                <svg class="w-3.5 h-3.5 transition-transform" :class="{ 'rotate-180': liveMenuOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
-              </button>
-            </div>
-
-            <!-- dropdown -->
-            <div v-if="liveMenuOpen" class="absolute right-0 mt-2 w-64 z-50 panel-raised p-1.5 anim-pop">
-              <button @click="setLiveMode('silent')" class="w-full flex items-start gap-2.5 p-2.5 rounded-lg text-left hover:bg-[color:var(--surface-2)] transition-colors">
-                <span class="w-2.5 h-2.5 rounded-full bg-healthy mt-1 shrink-0"></span>
-                <span>
-                  <span class="block font-semibold text-sm">Live (tanpa Telegram)</span>
-                  <span class="block text-[11px] text-[color:var(--text-muted)]">Monitoring real-time saja</span>
-                </span>
-                <svg v-if="liveMode === 'silent' && autoRefresh" class="w-4 h-4 text-healthy ml-auto mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
-              </button>
-              <button @click="setLiveMode('telegram')" class="w-full flex items-start gap-2.5 p-2.5 rounded-lg text-left hover:bg-[color:var(--surface-2)] transition-colors">
-                <svg class="w-3.5 h-3.5 text-steel mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
-                <span>
-                  <span class="block font-semibold text-sm">Live + Kirim Telegram</span>
-                  <span class="block text-[11px] text-[color:var(--text-muted)]">Kirim alert otomatis saat CRITICAL & WARNING</span>
-                </span>
-                <svg v-if="liveMode === 'telegram' && autoRefresh" class="w-4 h-4 text-steel ml-auto mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
-              </button>
-              <div v-if="autoRefresh" class="border-t border-[color:var(--border)] mt-1 pt-1">
-                <button @click="toggleLive" class="w-full flex items-center gap-2.5 p-2.5 rounded-lg text-left hover:bg-[color:var(--surface-2)] transition-colors text-[color:var(--text-muted)]">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
-                  <span class="font-semibold text-sm">Pause</span>
-                </button>
-              </div>
-              <div class="border-t border-[color:var(--border)] mt-1 pt-1">
-                <button @click="testTelegram" :disabled="alertTesting"
-                  class="w-full flex items-center gap-2.5 p-2.5 rounded-lg text-left hover:bg-[color:var(--surface-2)] transition-colors text-steel disabled:opacity-60">
-                  <svg v-if="!alertTesting" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
-                  <svg v-else class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                  <span class="font-semibold text-sm">{{ alertTesting ? 'Menguji koneksi…' : 'Test Koneksi Telegram' }}</span>
-                </button>
-              </div>
-            </div>
-            <!-- klik luar menutup -->
-            <div v-if="liveMenuOpen" class="fixed inset-0 z-40" @click="liveMenuOpen = false"></div>
-          </div>
+          <!-- PRATYAKSA Mode Selector (4 sub-modes for analisa) -->
+          <ModeSelector showSubModes @testTelegram="testTelegram" />
 
           <div class="panel-flat px-3 py-2 text-[10px] font-mono text-[color:var(--text-muted)]">
             Update<br><span class="font-semibold text-[color:var(--text)]">{{ lastUpdate || '—' }}</span>
           </div>
         </div>
       </header>
+
+      <!-- Mode Lock Table -->
+      <ModeLockTabel showSubModes @testTelegram="testTelegram" />
 
       <!-- status pengiriman alert telegram -->
       <div v-if="alertStatus" class="mb-4 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2"

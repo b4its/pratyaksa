@@ -20,6 +20,8 @@
   },
   "devDependencies": {
     "@nuxtjs/tailwindcss": "^6.14.0",
-    "shadcn-nuxt": "^2.7.4"
+    "shadcn-nuxt": "^2.7.4",
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.3.5"
   }
 }

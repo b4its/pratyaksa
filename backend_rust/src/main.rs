@@ -10,10 +10,12 @@ mod db;
 mod errors;
 mod middleware;
 mod models;
+mod pratyaksa;
 mod routes;
 
 use config::AppConfig;
 use db::{mongo::MongoDb, postgres::PostgresDb};
+use pratyaksa::PratyaksaApiClient;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -31,7 +33,7 @@ async fn main() -> std::io::Result<()> {
     // Load config
     let config = AppConfig::from_env().expect("Failed to load configuration");
 
-    info!("🚀 Starting Pratyaksa Backend");
+    info!("🚀 Starting Pratyaksa Backend v{}", env!("CARGO_PKG_VERSION"));
     info!("📦 Connecting to PostgreSQL...");
 
     // Initialize PostgreSQL
@@ -50,6 +52,22 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Failed to connect to MongoDB");
     info!("✅ MongoDB connected");
+
+    // Initialize shared PRATYAKSA state
+    let pratyaksa_state = pratyaksa::new_shared_state();
+    let pratyaksa_state_clone = pratyaksa_state.clone();
+
+    // Initialize PRATYAKSA API Client (sekali, di-share via web::Data)
+    let pratyaksa_client = PratyaksaApiClient::new(&config);
+    let pratyaksa_client_clone = pratyaksa_client.clone();
+    let polling_interval = config.pratyaksa_poll_interval_secs;
+
+    // Spawn background polling task untuk PRATYAKSA API
+    tokio::spawn(async move {
+        pratyaksa::start_polling(pratyaksa_state_clone, pratyaksa_client_clone, polling_interval).await;
+    });
+
+    info!("🔁 PRATYAKSA background polling task started");
 
     let pg_data = web::Data::new(pg_db);
     let mongo_data = web::Data::new(mongo_db);
@@ -77,7 +95,9 @@ async fn main() -> std::io::Result<()> {
             .app_data(pg_data.clone())
             .app_data(mongo_data.clone())
             .app_data(config_data.clone())
-            .app_data(web::JsonConfig::default().error_handler(|err, req| {
+            .app_data(pratyaksa_state.clone())
+            .app_data(web::Data::new(pratyaksa_client.clone()))
+            .app_data(web::JsonConfig::default().error_handler(|err, _req| {
                 let response = errors::AppError::ValidationError(err.to_string())
                     .error_response();
                 actix_web::error::InternalError::from_response(err, response).into()

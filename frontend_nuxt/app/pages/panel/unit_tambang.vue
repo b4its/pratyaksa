@@ -175,6 +175,10 @@ const fetchJenisOptions = async () => {
 onMounted(() => {
   initTheme()
   initAuth()
+  // Inisialisasi pratyaksa polling
+  const pratyaksa = usePratyaksa()
+  pratyaksa.fetchAll()
+  pratyaksa.startPolling(10000)
   fetchUnits()
   fetchJenisOptions()
   loadSensorMap()
@@ -308,7 +312,12 @@ const exportCSV = () => {
           <div class="w-8 h-8 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-xs">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
           <span class="font-semibold text-sm">{{ user?.name || 'Admin' }}</span>
         </div>
+        <!-- PRATYAKSA Mode Selector -->
+        <ModeSelector :showSubModes="false" />
       </header>
+
+      <!-- Mode Lock Table -->
+      <ModeLockTabel />
 
       <div v-if="errorMsg" class="mb-6 px-4 py-3 rounded-xl bg-critical/10 border border-critical/40 text-critical font-semibold flex items-center gap-2">⚠️ {{ errorMsg }}</div>
 

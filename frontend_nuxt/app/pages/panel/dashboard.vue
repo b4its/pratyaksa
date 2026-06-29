@@ -36,6 +36,16 @@ const { initAuth, user } = useAuth()
 const { isDark, toggleTheme, initTheme } = useTheme()
 const api = useApi()
 
+// ---- PRATYAKSA Mode (Live / Simulasi) - shared singleton ----
+const pratyaksa = usePratyaksa()
+const pratyaksaInitialized = ref(false)
+const initPratyaksa = async () => {
+  if (pratyaksaInitialized.value) return
+  pratyaksaInitialized.value = true
+  await pratyaksa.fetchAll()
+  pratyaksa.startPolling(10000)
+}
+
 // ---- KPI dari backend ----
 const dashboardKPI = ref({ totalUnits: 0, activeUnits: 0, criticalUnits: 0, totalSavings: 0 })
 
@@ -139,7 +149,7 @@ const loadDashboard = async () => {
 onMounted(async () => {
   initTheme()
   initAuth()
-  await Promise.all([loadDashboard(), loadUnits()])
+  await Promise.all([loadDashboard(), loadUnits(), initPratyaksa()])
   isLoading.value = false
   await nextTick()
 
@@ -252,7 +262,12 @@ watch(isDark, () => {
           <div class="w-8 h-8 rounded-full bg-steel-gradient flex items-center justify-center text-white font-bold text-xs">{{ (user?.name || 'A').charAt(0).toUpperCase() }}</div>
           <span class="font-semibold text-sm">{{ user?.name || 'Admin' }}</span>
         </div>
+        <!-- PRATYAKSA Mode Selector -->
+        <ModeSelector :showSubModes="false" />
       </header>
+
+      <!-- Mode Lock Table -->
+      <ModeLockTabel />
 
       <div class="space-y-7">
 

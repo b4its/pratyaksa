@@ -11,9 +11,8 @@ ENV CI=true
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Gunakan npm (bukan pnpm) di dalam Docker — lebih sederhana, tidak ada approval issue
-# --legacy-peer-deps untuk toleran terhadap peer dep conflicts
-RUN npm install --legacy-peer-deps
+# Install dependencies — tanpa legacy-peer-deps agar hoisting standar
+RUN npm install
 
 # Copy source
 COPY app ./app
