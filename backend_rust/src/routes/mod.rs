@@ -5,6 +5,7 @@ pub mod auth;
 pub mod dashboard;
 pub mod health_analytics;
 pub mod jenis_alat_berat;
+pub mod live;
 pub mod pratyaksa;
 pub mod telemetry;
 pub mod unit_tambang;
@@ -51,8 +52,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                     .route("/{id}", web::delete().to(unit_tambang::delete)),
             )
             // Analisa Kerusakan (protected)
-            //  - /overview & /unit/{id}: analitik kesehatan realtime (PostgreSQL)
-            //  - sisanya: CRUD laporan manual (MongoDB)
             .service(
                 web::scope("/analisa")
                     .wrap(crate::middleware::AuthMiddleware)
@@ -93,6 +92,15 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                     .route("/explain/{prediction_id}", web::get().to(pratyaksa::get_explain))
                     .route("/reload-models", web::post().to(pratyaksa::post_reload_models))
                     .route("/mode", web::post().to(pratyaksa::mode_switch)),
+            )
+            // LIVE API — data tersimpan di MongoDB dari ML API live
+            .service(
+                web::scope("/live")
+                    .route("/predictions", web::get().to(live::list_predictions))
+                    .route("/predictions/{asset_id}/latest", web::get().to(live::get_latest_prediction))
+                    .route("/fleet", web::get().to(live::list_fleet_snapshots))
+                    .route("/work-orders", web::get().to(live::list_work_orders))
+                    .route("/stats", web::get().to(live::get_live_stats)),
             ),
     );
 }

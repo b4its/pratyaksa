@@ -5,7 +5,10 @@
 //! diturunkan secara deterministik dari `health` + `status` unit dengan
 //! variasi berbasis waktu agar terlihat realtime saat di-polling frontend.
 
-use crate::{db::postgres::PostgresDb, errors::AppError, models::unit_tambang::UnitTambang};
+use crate::{
+    db::postgres::PostgresDb, errors::AppError, models::unit_tambang::UnitTambang,
+    pratyaksa::{PratyaksaApiClient, PratyaksaMode, SharedPratyaksaState},
+};
 use actix_web::{web, HttpResponse};
 use chrono::{Duration, Utc};
 use serde_json::json;
@@ -489,7 +492,85 @@ fn derive_unit_analysis(unit: &UnitTambang) -> serde_json::Value {
 }
 
 /// GET /api/v1/analisa/overview — analitik kesehatan seluruh armada (realtime).
-pub async fn get_overview(pg: web::Data<PostgresDb>) -> Result<HttpResponse, AppError> {
+pub async fn get_overview(
+    pg: web::Data<PostgresDb>,
+    pratyaksa_state: SharedPratyaksaState,
+) -> Result<HttpResponse, AppError> {
+    let (mode, reachable) = {
+        let s = pratyaksa_state.read();
+        (s.mode.clone(), s.api_reachable)
+    };
+
+    // LIVE mode: tampilkan data dari live API fleet
+    if mode == PratyaksaMode::Live && reachable {
+        let fleet = {
+            let s = pratyaksa_state.read();
+            s.fleet_data.clone()
+        };
+
+        let total = fleet.len() as i64;
+        let mut status_count = std::collections::BTreeMap::new();
+        let mut risk_count = std::collections::BTreeMap::new();
+        let mut sum_risk = 0.0;
+        let mut sum_rul = 0.0;
+
+        let mut unit_summaries: Vec<serde_json::Value> = Vec::new();
+
+        for asset in &fleet {
+            *status_count.entry(asset.risk_level.clone()).or_insert(0i64) += 1;
+            let risk_score: f64 = match asset.risk_level.as_str() {
+                "CRITICAL" => 85.0,
+                "WARNING" => 55.0,
+                _ => 20.0,
+            };
+            let risk_level = if risk_score < 30.0 { "LOW" } else if risk_score < 55.0 { "MEDIUM" } else if risk_score < 80.0 { "HIGH" } else { "CRITICAL" };
+            *risk_count.entry(risk_level.to_string()).or_insert(0i64) += 1;
+            sum_risk += risk_score;
+            sum_rul += asset.lstm_rul_hours;
+
+            unit_summaries.push(json!({
+                "id": Uuid::new_v5(&Uuid::NAMESPACE_DNS, asset.asset_id.as_bytes()),
+                "code": asset.asset_id,
+                "jenis_alat_berat_nama": asset.equipment_type,
+                "status": asset.risk_level,
+                "health": (100.0 - risk_score).round() as i32,
+                "risk_score": risk_score.round(),
+                "risk_level": risk_level,
+            }));
+        }
+
+        let n = total.max(1) as f64;
+
+        let status_distribution: Vec<serde_json::Value> = ["NORMAL", "WARNING", "CRITICAL"]
+            .iter()
+            .map(|s| json!({ "label": s, "count": status_count.get(*s).copied().unwrap_or(0) }))
+            .collect();
+
+        let risk_distribution: Vec<serde_json::Value> = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+            .iter()
+            .map(|s| json!({ "label": s, "count": risk_count.get(*s).copied().unwrap_or(0) }))
+            .collect();
+
+        return Ok(HttpResponse::Ok().json(json!({
+            "status": "success",
+            "mode": "live",
+            "data": {
+                "total_units": total,
+                "avg_health": (100.0 - sum_risk / n).round(),
+                "avg_risk_score": (sum_risk / n).round(),
+                "fleet_avg_suhu": 85.0,
+                "fleet_avg_vibration": 2.5,
+                "units_at_risk": risk_count.get("HIGH").copied().unwrap_or(0)
+                    + risk_count.get("CRITICAL").copied().unwrap_or(0),
+                "status_distribution": status_distribution,
+                "risk_distribution": risk_distribution,
+                "units": unit_summaries,
+                "updated_at": Utc::now().to_rfc3339(),
+            }
+        })));
+    }
+
+    // SIMULASI mode: data dari PostgreSQL
     let units = sqlx::query_as::<_, UnitTambang>(
         r#"
         SELECT u.*, j.nama as jenis_alat_berat_nama
@@ -568,27 +649,123 @@ pub async fn get_overview(pg: web::Data<PostgresDb>) -> Result<HttpResponse, App
 /// GET /api/v1/analisa/unit/{id} — analitik detail satu unit (realtime).
 pub async fn get_unit_analysis(
     pg: web::Data<PostgresDb>,
-    path: web::Path<Uuid>,
+    pratyaksa_state: SharedPratyaksaState,
+    client: web::Data<PratyaksaApiClient>,
+    path: web::Path<String>,
 ) -> Result<HttpResponse, AppError> {
-    let id = path.into_inner();
+    let id_str = path.into_inner();
+    let (mode, reachable) = {
+        let s = pratyaksa_state.read();
+        (s.mode.clone(), s.api_reachable)
+    };
 
-    let unit = sqlx::query_as::<_, UnitTambang>(
-        r#"
-        SELECT u.*, j.nama as jenis_alat_berat_nama
-        FROM unit_tambang u
-        LEFT JOIN jenis_alat_berat j ON u.jenis_alat_berat_id = j.id
-        WHERE u.id = $1
-        "#,
-    )
-    .bind(id)
-    .fetch_optional(&pg.pool)
-    .await?
-    .ok_or_else(|| AppError::NotFound(format!("Unit dengan id {} tidak ditemukan", id)))?;
+    // LIVE mode: cari asset_id dari fleet, lalu fetch result dari live API
+    if mode == PratyaksaMode::Live && reachable {
+        let fleet = {
+            let s = pratyaksa_state.read();
+            s.fleet_data.clone()
+        };
 
-    let analysis = derive_unit_analysis(&unit);
+        // Cari asset dari fleet yang match dengan id
+        let asset = fleet.iter().find(|a| {
+            let expected_uuid = Uuid::new_v5(&Uuid::NAMESPACE_DNS, a.asset_id.as_bytes());
+            a.asset_id == id_str || expected_uuid.to_string() == id_str
+        });
 
-    Ok(HttpResponse::Ok().json(json!({
-        "status": "success",
-        "data": analysis
-    })))
+        match asset {
+            Some(asset) => {
+                let result = client.get_result(&asset.asset_id).await.unwrap_or_else(|_| {
+                    json!({
+                        "asset_id": asset.asset_id,
+                        "equipment_type": asset.equipment_type,
+                        "risk_level": asset.risk_level,
+                        "lstm_rul_hours": asset.lstm_rul_hours,
+                    })
+                });
+
+                let risk_score: f64 = match asset.risk_level.as_str() {
+                    "CRITICAL" => 85.0,
+                    "WARNING" => 55.0,
+                    _ => 20.0,
+                };
+
+                let analysis = json!({
+                    "unit": {
+                        "id": Uuid::new_v5(&Uuid::NAMESPACE_DNS, asset.asset_id.as_bytes()),
+                        "code": asset.asset_id,
+                        "jenis_alat_berat_nama": asset.equipment_type,
+                        "status": asset.risk_level,
+                        "health": (100.0 - risk_score).round() as i32,
+                    },
+                    "risk_score": risk_score.round(),
+                    "risk_level": if risk_score < 30.0 { "LOW" } else if risk_score < 55.0 { "MEDIUM" } else if risk_score < 80.0 { "HIGH" } else { "CRITICAL" },
+                    "sensor_readings": {
+                        "suhu_mesin": result.get("engine_oil_temp_c").and_then(|v| v.as_f64()).unwrap_or(85.0),
+                        "vibration": result.get("vibration_z_g").and_then(|v| v.as_f64()).unwrap_or(2.0),
+                        "tekanan_oli": result.get("engine_oil_pressure_psi").and_then(|v| v.as_f64()).unwrap_or(55.0),
+                        "rpm": result.get("engine_rpm").and_then(|v| v.as_f64()).unwrap_or(1500.0),
+                        "fuel_level": 65.0,
+                        "oil_particle_iso": result.get("oil_particle_count_iso").and_then(|v| v.as_f64()).unwrap_or(15.0),
+                        "acoustic_db": result.get("acoustic_emission_db").and_then(|v| v.as_f64()).unwrap_or(50.0),
+                        "jam_operasi": 5000.0,
+                    },
+                    "rul_prediction": {
+                        "component": "Engine",
+                        "hours_remaining": asset.lstm_rul_hours,
+                        "lower_bound": (asset.lstm_rul_hours * 0.82).round(),
+                        "upper_bound": (asset.lstm_rul_hours * 1.18).round(),
+                        "confidence": (75.0 + (asset.rul_uncertainty * 10.0).round().clamp(0.0, 25.0)),
+                    },
+                    "component_health": [
+                        json!({"component": "Engine", "health": (100.0 - risk_score).round().clamp(3.0, 100.0) }),
+                        json!({"component": "Hidrolik", "health": (90.0 - risk_score * 0.5).round().clamp(3.0, 100.0) }),
+                        json!({"component": "Transmisi", "health": (85.0 - risk_score * 0.4).round().clamp(3.0, 100.0) }),
+                        json!({"component": "Rem", "health": (80.0 - risk_score * 0.6).round().clamp(3.0, 100.0) }),
+                        json!({"component": "Bearing", "health": (88.0 - risk_score * 0.5).round().clamp(3.0, 100.0) }),
+                        json!({"component": "Kelistrikan", "health": (92.0 - risk_score * 0.3).round().clamp(3.0, 100.0) }),
+                    ],
+                    "prediction": result,
+                    "shap_contributions": result.get("shap_values").and_then(|v| v.as_array()).cloned().unwrap_or_default(),
+                    "digital_twin": result.get("digital_twin"),
+                    "drift_status": result.get("drift_status"),
+                    "updated_at": Utc::now().to_rfc3339(),
+                });
+
+                Ok(HttpResponse::Ok().json(json!({
+                    "status": "success",
+                    "mode": "live",
+                    "data": analysis
+                })))
+            }
+            None => Err(AppError::NotFound(format!(
+                "Unit dengan id {} tidak ditemukan di LIVE fleet", id_str
+            ))),
+        }
+    } else {
+        // SIMULASI mode: existing logic
+        let id: Uuid = id_str.parse().map_err(|_| {
+            AppError::BadRequest(format!("Invalid UUID: {}", id_str))
+        })?;
+
+        let unit = sqlx::query_as::<_, UnitTambang>(
+            r#"
+            SELECT u.*, j.nama as jenis_alat_berat_nama
+            FROM unit_tambang u
+            LEFT JOIN jenis_alat_berat j ON u.jenis_alat_berat_id = j.id
+            WHERE u.id = $1
+            "#,
+        )
+        .bind(id)
+        .fetch_optional(&pg.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("Unit dengan id {} tidak ditemukan", id)))?;
+
+        let analysis = derive_unit_analysis(&unit);
+
+        Ok(HttpResponse::Ok().json(json!({
+            "status": "success",
+            "mode": "simulasi",
+            "data": analysis
+        })))
+    }
 }

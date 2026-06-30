@@ -1,7 +1,13 @@
 pub mod models;
+pub mod sync;
 
 use crate::config::AppConfig;
+use crate::db::mongo::{self, MongoDb};
+use crate::models::live::{
+    LiveDriftLog, LiveDriftStatus, LiveDigitalTwin, LiveFleetSnapshot, LivePrediction,
+};
 use actix_web::web;
+use chrono::Utc;
 use models::*;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -40,6 +46,9 @@ pub struct PratyaksaState {
     pub last_fleet_poll: Option<Instant>,
     pub api_reachable: bool,
     pub polling_active: bool,
+    /// Counter untuk tracking jumlah prediksi yang disimpan
+    pub predictions_stored: u64,
+    pub fleet_snapshots_stored: u64,
 }
 
 impl Default for PratyaksaState {
@@ -53,6 +62,8 @@ impl Default for PratyaksaState {
             last_fleet_poll: None,
             api_reachable: false,
             polling_active: false,
+            predictions_stored: 0,
+            fleet_snapshots_stored: 0,
         }
     }
 }
@@ -530,6 +541,7 @@ pub async fn start_polling(
     state: SharedPratyaksaState,
     client: PratyaksaApiClient,
     poll_interval_secs: u64,
+    mongo: MongoDb,
 ) {
     let mut tick = interval(Duration::from_secs(poll_interval_secs));
 
@@ -590,9 +602,37 @@ pub async fn start_polling(
                 if health_ok {
                     match client.get_fleet().await {
                         Ok(fleet_resp) => {
-                            let mut s = state.write();
-                            s.fleet_data = fleet_resp.fleet;
-                            s.last_fleet_poll = Some(Instant::now());
+                            let now = Utc::now();
+                            let asset_ids = {
+                                let mut s = state.write();
+                                s.fleet_data = fleet_resp.fleet;
+                                s.last_fleet_poll = Some(Instant::now());
+
+                                for asset in &s.fleet_data {
+                                    let snapshot = LiveFleetSnapshot {
+                                        id: None,
+                                        asset_id: asset.asset_id.clone(),
+                                        equipment_type: asset.equipment_type.clone(),
+                                        risk_level: asset.risk_level.clone(),
+                                        lstm_rul_hours: asset.lstm_rul_hours,
+                                        rul_uncertainty: asset.rul_uncertainty,
+                                        model_agreement: asset.model_agreement,
+                                        drift_detected: asset.drift_detected,
+                                        processed_at: asset.processed_at,
+                                        stored_at: now,
+                                    };
+                                    mongo::store_fleet_snapshot(&mongo, snapshot);
+                                }
+                                s.fleet_snapshots_stored += s.fleet_data.len() as u64;
+
+                                s.fleet_data.iter().map(|a| a.asset_id.clone()).collect::<Vec<String>>()
+                            };
+
+                            for asset_id in asset_ids {
+                                if let Ok(result) = client.get_result(&asset_id).await {
+                                    store_result_to_mongo(&mongo, &result, now);
+                                }
+                            }
                         }
                         Err(e) => {
                             warn!("Fleet fetch gagal (mode LIVE manual): {}", e);
@@ -618,9 +658,37 @@ pub async fn start_polling(
 
                         match client.get_fleet().await {
                             Ok(fleet_resp) => {
-                                let mut s = state.write();
-                                s.fleet_data = fleet_resp.fleet;
-                                s.last_fleet_poll = Some(Instant::now());
+                                let now = Utc::now();
+                                let asset_ids = {
+                                    let mut s = state.write();
+                                    s.fleet_data = fleet_resp.fleet;
+                                    s.last_fleet_poll = Some(Instant::now());
+
+                                    for asset in &s.fleet_data {
+                                        let snapshot = LiveFleetSnapshot {
+                                            id: None,
+                                            asset_id: asset.asset_id.clone(),
+                                            equipment_type: asset.equipment_type.clone(),
+                                            risk_level: asset.risk_level.clone(),
+                                            lstm_rul_hours: asset.lstm_rul_hours,
+                                            rul_uncertainty: asset.rul_uncertainty,
+                                            model_agreement: asset.model_agreement,
+                                            drift_detected: asset.drift_detected,
+                                            processed_at: asset.processed_at,
+                                            stored_at: now,
+                                        };
+                                        mongo::store_fleet_snapshot(&mongo, snapshot);
+                                    }
+                                    s.fleet_snapshots_stored += s.fleet_data.len() as u64;
+
+                                    s.fleet_data.iter().map(|a| a.asset_id.clone()).collect::<Vec<String>>()
+                                };
+
+                                for asset_id in asset_ids {
+                                    if let Ok(result) = client.get_result(&asset_id).await {
+                                        store_result_to_mongo(&mongo, &result, now);
+                                    }
+                                }
                             }
                             Err(e) => {
                                 warn!("Fleet fetch gagal (auto mode): {}", e);
@@ -647,5 +715,68 @@ pub async fn start_polling(
                 }
             }
         }
+    }
+}
+
+/// Parse result JSON from ML API and store as LivePrediction to MongoDB
+fn store_result_to_mongo(mongo: &MongoDb, result: &serde_json::Value, now: chrono::DateTime<Utc>) {
+    let asset_id = result["asset_id"].as_str().unwrap_or("unknown").to_string();
+    let equipment_type = result["equipment_type"].as_str().unwrap_or("unknown").to_string();
+
+    let prediction = LivePrediction {
+        id: None,
+        asset_id: asset_id.clone(),
+        equipment_type: equipment_type.clone(),
+        timestamp: result["timestamp"].as_str().unwrap_or("").to_string(),
+        xgb_anomaly_class: result["xgb_anomaly_class"].as_i64().unwrap_or(0) as i32,
+        xgb_anomaly_label: result["xgb_anomaly_label"].as_str().unwrap_or("NORMAL").to_string(),
+        lstm_rul_hours: result["lstm_rul_hours"].as_f64().unwrap_or(0.0),
+        rul_uncertainty: result["rul_uncertainty"].as_f64().unwrap_or(0.0),
+        risk_level: result["risk_level"].as_str().unwrap_or("NORMAL").to_string(),
+        risk_class: result["risk_class"].as_i64().unwrap_or(0) as i32,
+        model_agreement: result["model_agreement"].as_bool().unwrap_or(true),
+        RUL_hydraulic_system: result["RUL_hydraulic_system"].as_f64().unwrap_or(0.0),
+        RUL_hydraulic_pump: result["RUL_hydraulic_pump"].as_f64().unwrap_or(0.0),
+        RUL_pump_seal_main: result["RUL_pump_seal_main"].as_f64().unwrap_or(0.0),
+        RUL_brake_system: result["RUL_brake_system"].as_f64().unwrap_or(0.0),
+        RUL_brake_caliper: result["RUL_brake_caliper"].as_f64().unwrap_or(0.0),
+        RUL_brake_pad_rear: result["RUL_brake_pad_rear"].as_f64().unwrap_or(0.0),
+        RUL_steering_system: result["RUL_steering_system"].as_f64().unwrap_or(0.0),
+        digital_twin: LiveDigitalTwin {
+            brake_twin_rul: result["digital_twin"]["brake_twin_rul"].as_f64().unwrap_or(0.0),
+            bearing_twin_rul: result["digital_twin"]["bearing_twin_rul"].as_f64().unwrap_or(0.0),
+            hydraulic_twin_rul: result["digital_twin"]["hydraulic_twin_rul"].as_f64().unwrap_or(0.0),
+        },
+        drift_status: LiveDriftStatus {
+            drift_detected: result["drift_status"]["drift_detected"].as_bool().unwrap_or(false),
+            drifted_features: result["drift_status"]["drifted_features"]
+                .as_array()
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default(),
+            max_z_score: result["drift_status"]["max_z_score"].as_f64().unwrap_or(0.0),
+            n_drifted: result["drift_status"]["n_drifted"].as_i64().unwrap_or(0) as i32,
+        },
+        processed_at: result["processed_at"].as_f64().unwrap_or(0.0),
+        latency_ms: result["latency_ms"].as_f64().unwrap_or(0.0),
+        stored_at: now,
+    };
+    mongo::store_prediction(mongo, prediction);
+
+    if result["drift_status"]["drift_detected"].as_bool().unwrap_or(false) {
+        let drift_log = LiveDriftLog {
+            id: None,
+            asset_id,
+            equipment_type,
+            drifted_features: result["drift_status"]["drifted_features"]
+                .as_array()
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default(),
+            max_z_score: result["drift_status"]["max_z_score"].as_f64().unwrap_or(0.0),
+            n_drifted: result["drift_status"]["n_drifted"].as_i64().unwrap_or(0) as i32,
+            drift_detected: true,
+            logged_at: result["timestamp"].as_str().unwrap_or("").to_string(),
+            stored_at: now,
+        };
+        mongo::store_drift_log(mongo, drift_log);
     }
 }

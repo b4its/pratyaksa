@@ -62,12 +62,30 @@ async fn main() -> std::io::Result<()> {
     let pratyaksa_client_clone = pratyaksa_client.clone();
     let polling_interval = config.pratyaksa_poll_interval_secs;
 
+    // Clone mongo for polling and sync tasks
+    let mongo_for_polling = mongo_db.clone();
+    let mongo_for_sync = mongo_db.clone();
+
     // Spawn background polling task untuk PRATYAKSA API
     tokio::spawn(async move {
-        pratyaksa::start_polling(pratyaksa_state_clone, pratyaksa_client_clone, polling_interval).await;
+        pratyaksa::start_polling(
+            pratyaksa_state_clone,
+            pratyaksa_client_clone,
+            polling_interval,
+            mongo_for_polling,
+        )
+        .await;
+    });
+
+    // Spawn background sync task for ml-pratyaksa PostgreSQL data migration
+    let sync_config = config.clone();
+    let sync_state = pratyaksa_state.clone();
+    tokio::spawn(async move {
+        pratyaksa::sync::start_sync(sync_state, sync_config, mongo_for_sync).await;
     });
 
     info!("🔁 PRATYAKSA background polling task started");
+    info!("🔄 ML PRATYAKSA background sync task started");
 
     let pg_data = web::Data::new(pg_db);
     let mongo_data = web::Data::new(mongo_db);

@@ -281,6 +281,11 @@ impl AppState {
             .await
             .map_err(|e| format!("respons backend tidak valid: {e}"))?;
 
+        if v["status"].as_str() == Some("error") {
+            let msg = v["message"].as_str().unwrap_or("Error tidak diketahui");
+            return Err(format!("{}", msg));
+        }
+
         let mode = v["mode"].as_str().unwrap_or("simulasi");
         let d = &v["data"];
 
@@ -292,14 +297,24 @@ impl AppState {
         let model_agreement = d["model_agreement"].as_bool().unwrap_or(false);
         let drift = d["drift_status"]["drift_detected"].as_bool().unwrap_or(false);
 
-        let rul_hydraulic = d["RUL_hydraulic_system"].as_f64().unwrap_or(0.0);
-        let rul_brake = d["RUL_brake_system"].as_f64().unwrap_or(0.0);
-        let rul_steering = d["RUL_steering_system"].as_f64().unwrap_or(0.0);
-
         let brake_twin = d["digital_twin"]["brake_twin_rul"].as_f64().unwrap_or(0.0);
         let hydraulic_twin = d["digital_twin"]["hydraulic_twin_rul"].as_f64().unwrap_or(0.0);
 
-        let processed_at = d["timestamp"].as_str().unwrap_or("N/A");
+        let processed_time = {
+            let ts = d["processed_at"].as_f64().unwrap_or(0.0);
+            if ts > 0.0 {
+                let secs = ts as i64;
+                let days = secs / 86400;
+                let hours = (secs % 86400) / 3600;
+                let minutes = (secs % 3600) / 60;
+                let secs_remain = secs % 60;
+                format!("{}-{:02}-{:02} {:02}:{:02}:{:02} UTC",
+                    1970 + days / 365, (days % 365) / 30 + 1, (days % 30) + 1,
+                    hours, minutes, secs_remain)
+            } else {
+                "N/A".to_string()
+            }
+        };
 
         let risk_icon = match risk_level {
             "CRITICAL" => "🔴",
@@ -316,18 +331,14 @@ impl AppState {
              📍 <b>Tipe:</b> {equipment_type}\n\
              {risk_icon} <b>Risk Level:</b> {risk_level}\n\
              🕒 <b>RUL:</b> {lstm_rul:.0} jam\n\
-             📊 <b>Uncertainty:</b> {uncertainty:.1}%\n\
+             📊 <b>Uncertainty:</b> {uncertainty:.1}\n\
              🔄 <b>Model Agreement:</b> {model_agreement}\n\
              ⚠️ <b>Drift Detected:</b> {drift}\n\n\
-             🔧 <b>RUL per Komponen:</b>\n\
-             • Hydraulic System: {rul_hydraulic:.0} jam\n\
-             • Brake System: {rul_brake:.0} jam\n\
-             • Steering System: {rul_steering:.0} jam\n\n\
              💡 <b>Digital Twin Prediction:</b>\n\
              • Brake Twin: {brake_twin:.0} jam\n\
              • Hydraulic Twin: {hydraulic_twin:.0} jam\n\n\
-             ⏰ <b>Last processed:</b> {processed_at}\n\n\
-             <i>Data diperbaharui setiap 5 detik dari backend PRATYAKSA.</i>"
+             ⏰ <b>Last processed:</b> {processed_time}\n\n\
+             <i>Data sinkron dengan website — mode: {mode}.</i>"
         ))
     }
 
