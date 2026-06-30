@@ -14,6 +14,7 @@ interface PratyaksaFleetAsset {
 
 interface PratyaksaStatus {
   mode: PratyaksaBackendMode
+  manual_mode: string | null
   api_reachable: boolean
   fleet_count: number
 }
@@ -28,6 +29,7 @@ interface FleetHealth {
 
 const status = ref<PratyaksaStatus>({
   mode: 'simulasi',
+  manual_mode: null,
   api_reachable: false,
   fleet_count: 0,
 })
@@ -103,18 +105,13 @@ export const usePratyaksa = () => {
   }
 
   const setMode = async (mode: 'live' | 'simulasi' | 'auto') => {
-    try {
-      const body: any = mode === 'auto' ? { reset: true } : { mode }
-      const res: any = await $fetch(`${baseURL}/pratyaksa/mode`, {
-        method: 'POST',
-        body,
-      })
-      await fetchStatus()
-      return res
-    } catch (e: any) {
-      error.value = e?.data?.message || 'Gagal set mode'
-      return null
-    }
+    const body: any = mode === 'auto' ? { reset: true } : { mode }
+    const res: any = await $fetch(`${baseURL}/pratyaksa/mode`, {
+      method: 'POST',
+      body,
+    })
+    await fetchStatus()
+    return res
   }
 
   const fetchAll = async () => {

@@ -13,6 +13,16 @@ const emit = defineEmits<{
 const pratyaksa = usePratyaksa()
 const switching = ref(false)
 const switchingMode = ref<string | null>(null)
+const toast = ref<{ ok: boolean; msg: string } | null>(null)
+const switchingError = ref<string | null>(null)
+let toastTimer: any = null
+
+const showToast = (ok: boolean, msg: string) => {
+  toast.value = { ok, msg }
+  switchingError.value = ok ? null : msg
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toast.value = null; switchingError.value = null }, 5000)
+}
 
 interface ModeOption {
   id: 'simulasi' | 'live'
@@ -108,24 +118,29 @@ const subModeOptions: SubModeOption[] = [
 ]
 
 const isLocked = computed(() => {
-  return (pratyaksa.status as any)?.manual_mode != null
+  return pratyaksa.status.value?.manual_mode != null
 })
 
 const currentModeId = computed(() => {
-  const m = (pratyaksa.status as any)?.mode || 'simulasi'
-  return m
+  return pratyaksa.status.value?.manual_mode || pratyaksa.status.value?.mode || 'simulasi'
 })
 
 const selectMode = async (id: 'simulasi' | 'live') => {
-  if (switching.value) return
+  if (switching.value) {
+    showToast(false, 'Masih dalam proses perpindahan mode, tunggu sebentar...')
+    return
+  }
   switching.value = true
   switchingMode.value = id
 
   try {
-    await pratyaksa.setMode(id)
+    const res: any = await pratyaksa.setMode(id)
     await pratyaksa.fetchAll()
-  } catch {
-    // silent
+    const modeName = id === 'live' ? 'LIVE API' : 'SIMULASI'
+    showToast(true, `✓ Sumber data berhasil dipilih: ${modeName}`)
+  } catch (e: any) {
+    const detail = e?.data?.message || e?.message || 'Gagal terhubung ke backend'
+    showToast(false, `✗ Gagal pilih mode: ${detail}`)
   } finally {
     switching.value = false
     switchingMode.value = null
@@ -133,11 +148,13 @@ const selectMode = async (id: 'simulasi' | 'live') => {
 }
 
 const setSubMode = async (id: PratyaksaSourceMode) => {
-  // Pastikan backend dalam mode live
   if (currentModeId.value !== 'live') {
-    await selectMode('live')
+    const res: any = await selectMode('live')
+    if (!res) return
   }
   pratyaksa.setSourceMode(id)
+  const subName = subModeOptions.find(s => s.id === id)?.label || id
+  showToast(true, `✓ Mode analisa: ${subName}`)
 }
 
 const testTelegramHandler = () => {
@@ -145,7 +162,7 @@ const testTelegramHandler = () => {
 }
 
 const statusInfo = computed(() => {
-  const s = pratyaksa.status as any
+  const s = pratyaksa.status.value
   return {
     mode: s?.mode || 'simulasi',
     manualMode: s?.manual_mode,
@@ -157,6 +174,15 @@ const statusInfo = computed(() => {
 
 <template>
   <div>
+    <!-- Toast Notification -->
+    <div v-if="toast" class="mb-4 px-4 py-3 rounded-xl text-sm font-semibold flex items-center gap-2.5 transition-all anim-pop"
+      :class="toast.ok ? 'bg-healthy/15 border border-healthy/40 text-healthy' : 'bg-critical/15 border border-critical/40 text-critical'">
+      <svg v-if="toast.ok" class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+      <svg v-else class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>
+      <span>{{ toast.msg }}</span>
+      <button class="ml-auto opacity-60 hover:opacity-100" @click="toast = null">✕</button>
+    </div>
+
     <!-- ── MODE LOCK TABLE ── -->
     <div class="panel overflow-hidden mb-5">
       <div class="px-5 py-3 border-b border-[color:var(--border)] flex items-center justify-between flex-wrap gap-2">

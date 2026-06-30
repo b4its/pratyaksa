@@ -140,7 +140,7 @@ impl PratyaksaApiClient {
         }
     }
 
-    pub async fn get_result(&self, asset_id: &str) -> Result<ResultResponse, String> {
+    pub async fn get_result(&self, asset_id: &str) -> Result<serde_json::Value, String> {
         let url = format!("{}/result/{}", self.base_url, asset_id);
         let resp = self
             .client
@@ -152,7 +152,7 @@ impl PratyaksaApiClient {
             .map_err(|e| format!("Result fetch gagal: {}", e))?;
 
         if resp.status().is_success() {
-            resp.json::<ResultResponse>()
+            resp.json::<serde_json::Value>()
                 .await
                 .map_err(|e| format!("Parse result response gagal: {}", e))
         } else {
@@ -274,7 +274,6 @@ pub mod simulator {
             ("DT-001", "haul_truck"),
         ];
 
-        let t = time_bucket(5);
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -284,21 +283,29 @@ pub mod simulator {
             .iter()
             .map(|(asset_id, eq_type)| {
                 let seed = seed_from_string(asset_id);
-                let degr = frand(seed + t * 0.1);
+                // Base degradation dari asset_id (konsisten per asset)
+                // Pakai time_bucket 300s (5 menit) agar tidak berubah terlalu cepat
+                let t = time_bucket(300);
+                let base_degr = frand(seed * 1.7 + 13.0); // 0..1 — unique per asset
+                let time_jitter = frand(seed + t * 0.05) * 0.15; // small jitter over time
+                let degr = (base_degr + time_jitter).clamp(0.0, 1.0);
 
-                let risk_level = if degr < 0.5 {
+                // Risk level lebih realistik: sebagian CRITICAL, sebagian WARNING, sebagian NORMAL
+                // Degradation: 0-0.3 = NORMAL, 0.3-0.55 = WARNING, 0.55-1.0 = CRITICAL
+                let risk_level = if degr < 0.3 {
                     "NORMAL"
-                } else if degr < 0.78 {
+                } else if degr < 0.55 {
                     "WARNING"
                 } else {
                     "CRITICAL"
                 };
 
                 let rul_max = 2000.0;
-                let lstm_rul = r1(((1.0 - degr) * rul_max * (0.7 + frand(seed + 60.0) * 0.5))
-                    .clamp(8.0, rul_max));
-                let uncertainty = r1(lstm_rul * (0.08 + degr * 0.12) + 2.0);
-                let drift = frand(seed + t + 90.0) > 0.75;
+                // RUL berbanding terbalik dengan degradation
+                let lstm_rul = r1(((1.0 - degr) * rul_max * (0.6 + frand(seed + 60.0) * 0.4))
+                    .clamp(0.0, rul_max));
+                let uncertainty = r1(lstm_rul * (0.05 + degr * 0.15) + 3.0);
+                let drift = frand(seed + t + 90.0) > 0.6;
 
                 FleetAsset {
                     asset_id: asset_id.to_string(),
@@ -306,7 +313,7 @@ pub mod simulator {
                     risk_level: risk_level.to_string(),
                     lstm_rul_hours: lstm_rul,
                     rul_uncertainty: uncertainty,
-                    model_agreement: frand(seed + 50.0) > 0.25,
+                    model_agreement: frand(seed + 50.0) > 0.2,
                     drift_detected: drift,
                     processed_at: now,
                 }
@@ -314,13 +321,13 @@ pub mod simulator {
             .collect()
     }
 
-    pub fn generate_result(asset_id: &str) -> ResultResponse {
+    pub fn generate_result(asset_id: &str) -> serde_json::Value {
         let eq_type = if asset_id.starts_with("WA") {
             "wheel_loader"
         } else if asset_id.starts_with("HD") {
             "haul_truck"
         } else if asset_id.starts_with("D1") {
-            "dozer"
+            "bulldozer"
         } else if asset_id.starts_with("PC") {
             "excavator"
         } else {
@@ -328,9 +335,19 @@ pub mod simulator {
         };
 
         let seed = seed_from_string(asset_id);
-        let t = time_bucket(5);
-        let degr = frand(seed + t * 0.1);
+        // Sama seperti generate_fleet: time_bucket 300 detik
+        let t = time_bucket(300);
+        let base_degr = frand(seed * 1.7 + 13.0);
+        let time_jitter = frand(seed + t * 0.05) * 0.15;
+        let degr = (base_degr + time_jitter).clamp(0.0, 1.0);
 
+        let xgb_class: i32 = if degr < 0.3 {
+            0
+        } else if degr < 0.55 {
+            1
+        } else {
+            2
+        };
         let xgb_class: i32 = if degr < 0.5 {
             0
         } else if degr < 0.78 {
@@ -352,6 +369,8 @@ pub mod simulator {
             0
         };
         let risk_class = xgb_class.max(lstm_class);
+        let xgb_label = ["NORMAL", "WARNING", "CRITICAL"][xgb_class as usize].to_string();
+        let risk_lbl = ["NORMAL", "WARNING", "CRITICAL"][risk_class as usize].to_string();
         let model_agreement = xgb_class == lstm_class;
 
         let comp = |nominal: f64, idx: f64| -> f64 {
@@ -363,57 +382,56 @@ pub mod simulator {
 
         let drift_detected = frand(seed + t + 90.0) > 0.75;
         let max_z_score = r1(0.6 + frand(seed + t + 91.0) * 2.4);
-        let feat_pool = [
-            "engine_oil_temp_c",
-            "vibration_z_g",
-            "coolant_temp_c",
-            "acoustic_emission_db",
-            "oil_particle_count_iso",
-        ];
-        let drifted: Vec<String> = if drift_detected {
-            let n = 1 + (frand(seed + 92.0) * 2.0) as usize;
-            feat_pool[..n.min(feat_pool.len())]
-                .iter()
-                .map(|s| s.to_string())
-                .collect()
-        } else {
-            vec![]
-        };
 
-        ResultResponse {
-            asset_id: asset_id.to_string(),
-            equipment_type: eq_type.to_string(),
-            xgb_anomaly_class: xgb_class,
-            xgb_anomaly_label: ["NORMAL", "WARNING", "CRITICAL"][xgb_class as usize].to_string(),
-            lstm_rul_hours: lstm_rul,
-            rul_uncertainty: uncertainty,
-            risk_level: ["NORMAL", "WARNING", "CRITICAL"][risk_class as usize].to_string(),
-            risk_class,
-            model_agreement,
-            lstm_hydraulic_system: comp(900.0, 1.0),
-            lstm_hydraulic_pump: comp(760.0, 2.0),
-            lstm_pump_seal: comp(560.0, 3.0),
-            lstm_brake_system: comp(820.0, 4.0),
-            lstm_brake_caliper: comp(640.0, 5.0),
-            lstm_brake_pad: comp(360.0, 6.0),
-            lstm_steering_system: comp(880.0, 7.0),
-            digital_twin: DigitalTwin {
-                brake_twin_rul: comp(700.0, 8.0),
-                bearing_twin_rul: comp(900.0, 9.0),
-                hydraulic_twin_rul: comp(820.0, 10.0),
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs_f64();
+
+        serde_json::json!({
+            "asset_id": asset_id,
+            "equipment_type": eq_type,
+            "timestamp": chrono::Utc::now().to_rfc3339(),
+            "xgb_anomaly_class": xgb_class,
+            "xgb_anomaly_label": xgb_label,
+            "lstm_rul_hours": lstm_rul,
+            "rul_uncertainty": uncertainty,
+            "risk_level": risk_lbl,
+            "risk_class": risk_class,
+            "model_agreement": model_agreement,
+            "RUL_hydraulic_system": comp(900.0, 1.0),
+            "RUL_hydraulic_pump": comp(760.0, 2.0),
+            "RUL_pump_seal_main": comp(560.0, 3.0),
+            "RUL_brake_system": comp(820.0, 4.0),
+            "RUL_brake_caliper": comp(640.0, 5.0),
+            "RUL_brake_pad_rear": comp(360.0, 6.0),
+            "RUL_steering_system": comp(880.0, 7.0),
+            "digital_twin": {
+                "brake_twin_rul": comp(700.0, 8.0),
+                "bearing_twin_rul": comp(900.0, 9.0),
+                "hydraulic_twin_rul": comp(820.0, 10.0)
             },
-            drift_status: DriftStatus {
-                drift_detected,
-                drifted_features: drifted,
-                max_z_score,
-                n_drifted: if drift_detected {
-                    1 + (frand(seed + 93.0) * 2.0) as i32
+            "drift_status": {
+                "drift_detected": drift_detected,
+                "drifted_features": if drift_detected {
+                    let feat_pool = [
+                        "engine_oil_temp_c",
+                        "vibration_z_g",
+                        "coolant_temp_c",
+                        "acoustic_emission_db",
+                        "oil_particle_count_iso",
+                    ];
+                    let n = 1 + (frand(seed + 92.0) * 2.0) as usize;
+                    feat_pool[..n.min(feat_pool.len())].to_vec()
                 } else {
-                    0
+                    vec![]
                 },
+                "max_z_score": max_z_score,
+                "n_drifted": if drift_detected { 1 + (frand(seed + 93.0) * 2.0) as i32 } else { 0 }
             },
-            latency_ms: r1(28.0 + frand(seed + t + 92.0) * 40.0),
-        }
+            "processed_at": now,
+            "latency_ms": r1(28.0 + frand(seed + t + 92.0) * 40.0)
+        })
     }
 
     pub fn generate_workorder(component: &str, risk_score: f64) -> WorkOrderResponse {

@@ -651,10 +651,21 @@ onMounted(async () => {
   refreshTimer = setInterval(() => {
     if (autoRefresh.value) refreshAll()
   }, 15000)
+
+  // Timer khusus Telegram — kirim alert tiap 5 detik selama mode live-telegram
+  const alertTimer = setInterval(() => {
+    if (pratyaksa.sourceMode.value === 'live-telegram') {
+      maybeSendAlert()
+    }
+  }, 5000)
+  // Simpan alertTimer ke window agar bisa dibersihkan
+  ;(window as any).__pratyaksa_alert_timer = alertTimer
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
+  const at = (window as any).__pratyaksa_alert_timer
+  if (at) { clearInterval(at); (window as any).__pratyaksa_alert_timer = null }
   Object.values(charts).forEach(c => c?.destroy())
 })
 

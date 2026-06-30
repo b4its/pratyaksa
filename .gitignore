@@ -4,3 +4,4 @@ docker-compose.yml
 backend_rust/target/
 catatan
 /catatan
+test/tes_endpoint
